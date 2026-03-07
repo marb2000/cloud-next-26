@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+This file defines the overall look and feel (the "style") of your application.
+A theme is a collection of attributes that are applied to your entire app or to individual activities.
+It allows you to define things like default colors and font styles in one place.
+
+The theme defined here is referenced in your AndroidManifest.xml inside the <application> tag,
+which sets the default theme for your entire app.
+-->
+<resources>
+
+    <style name="Theme.MyApplication" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

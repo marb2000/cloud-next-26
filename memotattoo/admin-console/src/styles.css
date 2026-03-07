@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --nano-primary: #8c7777;
+  --nano-secondary: #ec4899;
+  --nano-background: #0f172a;
+  --nano-surface: #1e293b;
+}
+
+body {
+  background-color: var(--nano-background);
+  color: #f8fafc;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 0;
+}

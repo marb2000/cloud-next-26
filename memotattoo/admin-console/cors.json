@@ -1,0 +1,13 @@
+[
+  {
+    "origin": [
+      "*"
+    ],
+    "method": [
+      "GET",
+      "OPTIONS",
+      "HEAD"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]

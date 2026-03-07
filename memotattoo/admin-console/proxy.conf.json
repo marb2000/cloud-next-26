@@ -1,0 +1,10 @@
+{
+  "/firebase-storage": {
+    "target": "https://firebasestorage.googleapis.com",
+    "secure": true,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/firebase-storage": ""
+    }
+  }
+}

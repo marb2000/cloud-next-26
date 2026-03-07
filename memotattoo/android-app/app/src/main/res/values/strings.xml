@@ -1,0 +1,13 @@
+<!--
+This file is used to centralize all the user-visible text in your app.
+Instead of hardcoding text directly in your layouts or code, you define it here and reference it.
+
+The primary reason for this is internationalization (i18n). To translate your app into other languages,
+you simply provide a different strings.xml file for each language (e.g., res/values-es/strings.xml for Spanish).
+The Android OS then automatically loads the correct text based on the user's device language.
+
+This string, `app_name`, is referenced in the AndroidManifest.xml to set the name of the app.
+-->
+<resources>
+    <string name="app_name">MemoTattoo</string>
+</resources>
