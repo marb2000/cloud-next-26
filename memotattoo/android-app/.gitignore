@@ -1,0 +1,16 @@
+# Android Studio / IntelliJ
+.idea/
+*.iml
+
+# Gradle
+.gradle/
+/build/
+# local.properties - It was kept just for learnnig proposals
+
+# Mac
+.DS_Store
+
+# Build artifacts
+/captures/
+.externalNativeBuild/
+.cxx/

@@ -1,0 +1,13 @@
+{
+  "name": "memotattoo-admin-scripts",
+  "version": "1.0.0",
+  "description": "Helper Node.js scripts for managing custom claims in MemoTattoo",
+  "main": "setAdminClaim.js",
+  "scripts": {
+    "set-admin": "node setAdminClaim.js"
+  },
+  "dependencies": {
+    "firebase": "^12.9.0",
+    "firebase-admin": "^12.7.0"
+  }
+}

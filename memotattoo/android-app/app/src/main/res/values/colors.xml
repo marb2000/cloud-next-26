@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+This file is used to define a palette of colors that you can reuse throughout your app's UI.
+It helps you maintain a consistent color scheme. If you decide to change your app's branding,
+you only need to update the color values in this one file.
+
+These colors are typically referenced in other resource files, especially in themes.xml to define the look and feel of your app.
+-->
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>

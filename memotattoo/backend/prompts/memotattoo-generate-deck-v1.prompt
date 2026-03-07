@@ -1,0 +1,29 @@
+---
+model: gemini-1.5-flash
+config:
+  temperature: 0.7
+  responseMimeType: application/json
+input:
+  schema:
+    type: object
+    properties:
+      topic:
+        type: string
+        description: The subject matter for the flashcards.
+      language:
+        type: string
+        description: The target language to translate the English phrases into.
+    required: [topic, language]
+---
+You are an expert language teacher.
+Generate a JSON flashcard deck about "{{topic}}" in "{{language}}".
+The JSON MUST have the following structure:
+{
+   "title": "A catchy title describing the theme",
+   "items": [
+      { "front": "English phrase", "back": "Translation in {{language}}" },
+      { "front": "Another phrase", "back": "Translation" }
+   ]
+}
+Return ONLY valid JSON without markdown ticks. 
+Generate precisely 5 items.

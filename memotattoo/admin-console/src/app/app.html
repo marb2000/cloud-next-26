@@ -1,0 +1,139 @@
+@if (auth.isAdmin()) {
+<div class="flex h-screen bg-slate-900 text-slate-200">
+  <nav
+    class="flex-shrink-0 flex flex-col pt-6 pb-4 border-r border-slate-800 bg-slate-950 transition-all duration-300 ease-in-out relative"
+    [ngClass]="isSidebarExpanded() ? 'w-64 px-4' : 'w-20 px-2'">
+    <!-- Logo area -->
+    <div class="flex items-center gap-3 mb-8" [ngClass]="isSidebarExpanded() ? 'px-2' : 'justify-center'">
+      <img src="logo.png" alt="MemoTattoo"
+        class="h-10 w-10 flex-shrink-0 object-contain drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]" />
+      @if (isSidebarExpanded()) {
+      <span
+        class="font-bold text-xl tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-teal-400 truncate">MemoTattoo</span>
+      }
+    </div>
+    
+    <!-- Links -->
+    <div class="flex flex-col gap-2">
+      <a routerLink="/" [routerLinkActive]="'bg-purple-500/10 text-purple-400 ring-1 ring-purple-500/50 shadow-sm'"
+        [routerLinkActiveOptions]="{exact: true}"
+        class="flex items-center gap-3 py-2.5 rounded-lg font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 transition-all"
+        [ngClass]="isSidebarExpanded() ? 'px-4' : 'justify-center px-0'" title="Dashboard">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+          </path>
+        </svg>
+        @if (isSidebarExpanded()) { <span class="truncate">Dashboard</span> }
+      </a>
+      <a routerLink="/flashcard-studio"
+        [routerLinkActive]="'bg-purple-500/10 text-purple-400 ring-1 ring-purple-500/50 shadow-sm'"
+        class="flex items-center gap-3 py-2.5 rounded-lg font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 transition-all"
+        [ngClass]="isSidebarExpanded() ? 'px-4' : 'justify-center px-0'" title="Deck Studio">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+        </svg>
+        @if (isSidebarExpanded()) { <span class="truncate">Deck Studio</span> }
+      </a>
+      <a routerLink="/flashcard-library"
+        [routerLinkActive]="'bg-purple-500/10 text-purple-400 ring-1 ring-purple-500/50 shadow-sm'"
+        class="flex items-center gap-3 py-2.5 rounded-lg font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 transition-all"
+        [ngClass]="isSidebarExpanded() ? 'px-4' : 'justify-center px-0'" title="Deck Library">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+          </path>
+        </svg>
+        @if (isSidebarExpanded()) { <span class="truncate">Deck Library</span> }
+      </a>
+      <a routerLink="/game" [routerLinkActive]="'bg-purple-500/10 text-purple-400 ring-1 ring-purple-500/50 shadow-sm'"
+        class="flex items-center gap-3 py-2.5 rounded-lg font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 transition-all"
+        [ngClass]="isSidebarExpanded() ? 'px-4' : 'justify-center px-0'" title="Game Simulation">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        @if (isSidebarExpanded()) { <span class="truncate">Game Simulation</span> }
+      </a>
+      <!-- NEW MODERATION LINK -->
+      <a routerLink="/deck-moderation"
+        [routerLinkActive]="'bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/50 shadow-sm'"
+        class="flex items-center gap-3 py-2.5 rounded-lg font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 transition-all"
+        [ngClass]="isSidebarExpanded() ? 'px-4' : 'justify-center px-0'" title="Moderation Queue">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
+          </path>
+        </svg>
+        @if (isSidebarExpanded()) { <span class="truncate">Moderation Queue</span> }
+      </a>
+      
+      <a routerLink="/users" [routerLinkActive]="'bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/50 shadow-sm'"
+        class="flex items-center gap-3 py-2.5 rounded-lg font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 transition-all"
+        [ngClass]="isSidebarExpanded() ? 'px-4' : 'justify-center px-0'" title="User Management">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+          </path>
+        </svg>
+        @if (isSidebarExpanded()) { <span class="truncate">User Management</span> }
+      </a>
+
+      <a routerLink="/logs" [routerLinkActive]="'bg-purple-500/10 text-purple-400 ring-1 ring-purple-500/50 shadow-sm'"
+        class="flex items-center gap-3 py-2.5 rounded-lg font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 transition-all"
+        [ngClass]="isSidebarExpanded() ? 'px-4' : 'justify-center px-0'" title="Activity Logs">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+          </path>
+        </svg>
+        @if (isSidebarExpanded()) { <span class="truncate">Activity Logs</span> }
+      </a>
+      </div>
+    <div class="mt-auto flex flex-col gap-4">
+      <!-- User info & Logout -->
+      <div class="flex flex-col gap-2" [ngClass]="isSidebarExpanded() ? 'px-2' : 'justify-center items-center'">
+        @if (isSidebarExpanded()) {
+        <div>
+          <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Connected</p>
+          <p class="text-xs font-medium text-slate-300 truncate" [title]="auth.currentUser()?.email">{{
+            auth.currentUser()?.email }}</p>
+        </div>
+        }
+        <button (click)="auth.logout()" title="Sign Out"
+          class="flex items-center gap-3 py-2.5 rounded-lg font-medium text-red-500 hover:bg-red-500/10 hover:ring-1 hover:ring-red-500/50 transition-all text-sm w-full"
+          [ngClass]="isSidebarExpanded() ? 'px-4 text-left' : 'justify-center px-0'">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+          </svg>
+          @if (isSidebarExpanded()) { <span class="truncate">Sign Out</span> }
+        </button>
+        </div>
+
+      <!-- Toggle button -->
+      <button (click)="toggleSidebar()" title="Toggle Sidebar"
+        class="mx-auto flex items-center justify-center w-8 h-8 rounded-full bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
+        @if (isSidebarExpanded()) {
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+        } @else {
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+        </svg>
+        }
+      </button>
+      </div>
+  </nav>
+  <main class="flex-1 overflow-y-auto bg-slate-900 p-8">
+    <router-outlet></router-outlet>
+  </main>
+</div>
+} @else {
+<!-- If not logged in or not admin, we display the login page which handles its own styling -->
+<div class="bg-slate-950">
+  <router-outlet></router-outlet>
+</div>
+}

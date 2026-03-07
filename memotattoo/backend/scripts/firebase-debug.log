@@ -1,0 +1,33 @@
+[debug] [2026-02-25T21:21:21.754Z] ----------------------------------------------------------------------
+[debug] [2026-02-25T21:21:21.756Z] Command:       /Users/ramosmiguel/.nvm/versions/node/v24.8.0/bin/node /Users/ramosmiguel/.nvm/versions/node/v24.8.0/bin/firebase auth:import admin_user.json
+[debug] [2026-02-25T21:21:21.756Z] CLI Version:   14.17.0
+[debug] [2026-02-25T21:21:21.756Z] Platform:      darwin
+[debug] [2026-02-25T21:21:21.756Z] Node Version:  v24.8.0
+[debug] [2026-02-25T21:21:21.756Z] Time:          Wed Feb 25 2026 13:21:21 GMT-0800 (Pacific Standard Time)
+[debug] [2026-02-25T21:21:21.756Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-02-25T21:21:21.819Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-02-25T21:21:21.819Z] > authorizing via signed-in user (ramosmiguel@google.com)
+[debug] [2026-02-25T21:21:21.819Z] [iam] checking project ai-logic-test for permissions ["firebase.projects.get","firebaseauth.users.create","firebaseauth.users.update"]
+[debug] [2026-02-25T21:21:21.819Z] Checked if tokens are valid: false, expires at: 1772051327689
+[debug] [2026-02-25T21:21:21.819Z] Checked if tokens are valid: false, expires at: 1772051327689
+[debug] [2026-02-25T21:21:21.819Z] > refreshing access token with scopes: []
+[debug] [2026-02-25T21:21:21.820Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-02-25T21:21:21.820Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-02-25T21:21:22.002Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-02-25T21:21:22.002Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-02-25T21:21:22.013Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/ai-logic-test:testIamPermissions [none]
+[debug] [2026-02-25T21:21:22.013Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/ai-logic-test:testIamPermissions x-goog-quota-user=projects/ai-logic-test
+[debug] [2026-02-25T21:21:22.013Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/ai-logic-test:testIamPermissions {"permissions":["firebase.projects.get","firebaseauth.users.create","firebaseauth.users.update"]}
+[debug] [2026-02-25T21:21:22.246Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/ai-logic-test:testIamPermissions 200
+[debug] [2026-02-25T21:21:22.247Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/ai-logic-test:testIamPermissions {}
+[debug] [2026-02-25T21:21:22.247Z] [iam] error while checking permissions, command may fail: Authorization failed. This account is missing the following required permissions on project ai-logic-test:
+
+  firebase.projects.get
+  firebaseauth.users.create
+  firebaseauth.users.update
+[warn] ⚠  No hash algorithm specified. Password users cannot be imported. 
+[debug] [2026-02-25T21:21:22.250Z] Using Google Analytics in DEBUG mode. Emulators (+ UI) events will be shown in GA Debug View only.
+[debug] [2026-02-25T21:21:22.344Z] Error: ENOENT: no such file or directory, stat 'admin_user.json'
+[error] 
+[error] Error: An unexpected error has occurred.

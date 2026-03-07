@@ -1,0 +1,268 @@
+<div
+  class="h-screen w-full flex flex-col pt-16 bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 text-slate-200 font-sans overflow-hidden">
+
+  @if (route.snapshot.paramMap.get('deckId')) {
+  <!-- Header Bar -->
+  <header
+    class="bg-slate-900/80 backdrop-blur-md border-b border-indigo-500/30 flex justify-between items-center px-6 py-3 shadow-lg z-20 shrink-0">
+    <div class="flex items-center gap-4">
+      <div
+        class="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold font-mono border-2 border-indigo-500/50 glow-indigo">
+        {{ score() }}
+      </div>
+      <div>
+        <h1
+          class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-fuchsia-300 drop-shadow-sm tracking-tight">
+          Memotattoo Game</h1>
+        <p class="text-xs font-mono text-indigo-200/50 uppercase tracking-widest">{{ deckTitle() }}</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-4">
+      @if (isSessionActive()) {
+      <div
+        class="font-mono text-xl tabular-nums rounded bg-slate-800 px-3 py-1 shadow-inner border border-slate-700 font-bold"
+        [class.text-red-400]="timeRemaining() <= 10"
+        [class.text-amber-400]="timeRemaining() > 10 && timeRemaining() <= 30"
+        [class.text-emerald-400]="timeRemaining() > 30">
+        00:{{ timeRemaining() < 10 ? '0' + timeRemaining() : timeRemaining() }} </div>
+          <button (click)="stopGame()"
+            class="px-4 py-1.5 bg-red-500/20 hover:bg-red-500/40 text-red-400 font-bold text-sm rounded-lg border border-red-500/30 transition-all active:scale-95">
+            End Game
+          </button>
+          } @else {
+          <button routerLink="/flashcard-library"
+            class="px-3 py-1.5 text-slate-400 hover:text-white font-semibold text-sm transition-colors cursor-pointer">
+            Exit
+          </button>
+          }
+      </div>
+  </header>
+
+  <!-- Main Game Area -->
+  <main class="flex-grow flex flex-col lg:flex-row relative z-10 w-full overflow-hidden">
+
+    @if (!isSessionActive() && !isGameOver()) {
+    <!-- Pre-game Landing -->
+    <div class="flex-grow flex flex-col items-center justify-center p-8 text-center bg-slate-900/40 backdrop-blur"
+      style="background-image: radial-gradient(circle at center, rgba(99, 102, 241, 0.1) 0%, transparent 70%);">
+      <div
+        class="w-24 h-24 mb-6 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-1 shadow-[0_0_40px_rgba(99,102,241,0.4)]">
+        <div class="w-full h-full bg-slate-950 rounded-xl flex items-center justify-center">
+          <svg class="w-12 h-12 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z">
+            </path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+      </div>
+      <h2 class="text-4xl font-black text-white drop-shadow-lg mb-4">Ready to Play?</h2>
+      <p class="text-slate-400 max-w-md mx-auto mb-8 leading-relaxed">The Game Master will show you an image. You have
+        60 seconds to guess the exact concept it represents. Use the chat to get hints!</p>
+      <button (click)="startGame()"
+        class="px-8 py-4 bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-500 hover:to-fuchsia-500 text-white font-bold text-lg rounded-xl shadow-[0_0_20px_rgba(232,121,249,0.4)] transition-all hover:scale-105 active:scale-95 group">
+        Enter Arena
+        <span class="inline-block ml-2 group-hover:translate-x-1 transition-transform">→</span>
+      </button>
+    </div>
+    } @else if (isGameOver()) {
+    <!-- Post-game summary -->
+    <div class="flex-grow flex flex-col items-center justify-center p-8 text-center">
+      <h2
+        class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-emerald-300 to-teal-500 drop-shadow mb-2">
+        Game Over!</h2>
+      <p class="text-xl text-slate-300 font-mono mb-8">Final Score: <span class="text-white font-bold text-3xl">{{
+          score() }}</span></p>
+
+      <div class="flex gap-4">
+        <button (click)="loadDeck(route.snapshot.paramMap.get('deckId')!); startGame()"
+          class="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow transition-colors">
+          Play Again
+        </button>
+        <button routerLink="/flashcard-library"
+          class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg transition-colors border border-slate-700 cursor-pointer">
+          Back to Library
+        </button>
+      </div>
+    </div>
+    } @else {
+    <!-- Active Game Layout -->
+    <!-- Visual Display (Left) -->
+    <div
+      class="flex-1 lg:w-3/5 p-4 lg:p-8 flex items-center justify-center border-b lg:border-b-0 lg:border-r border-indigo-500/20 relative">
+
+      <!-- Background glow underlying the image -->
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div class="w-[30vmax] h-[30vmax] bg-fuchsia-500/10 rounded-full blur-[100px] animate-pulse-slow"></div>
+      </div>
+
+      <!-- TIME OUT OVERLAY ANIMATION -->
+      @if (timeoutAnimation()) {
+      <div
+        class="absolute inset-0 z-50 flex items-center justify-center bg-red-950/80 backdrop-blur-md animate-in fade-in duration-300">
+        <div class="flex flex-col items-center">
+          <div
+            class="w-32 h-32 bg-red-500 rounded-full flex items-center justify-center shadow-[0_0_100px_rgba(239,68,68,0.6)] animate-bounce mb-6">
+            <svg class="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <h2
+            class="text-6xl font-black text-white px-8 py-2 bg-red-600 rounded-2xl animate-pulse transform -rotate-2 border-4 border-red-400">
+            TIME'S UP!
+          </h2>
+          <p class="mt-6 text-2xl font-bold text-red-200 bg-black/40 px-6 py-3 rounded-xl border border-red-500/30">
+            The answer was: <span class="text-white uppercase">{{ currentConcept()?.term }}</span>
+          </p>
+        </div>
+      </div>
+      }
+
+      @if (currentConcept()?.imageArt) {
+      <div (click)="toggleZoom()" title="Click to zoom"
+        class="w-full max-w-2xl aspect-square bg-slate-900 rounded-2xl border-4 border-slate-800 shadow-2xl overflow-hidden relative group cursor-pointer ring-0 hover:ring-4 ring-indigo-500/50 transition-all">
+
+        <img [src]="currentConcept().imageArt"
+          class="w-full h-full object-cover origin-center animate-fade-in transition-transform duration-[10s] ease-out group-hover:scale-110">
+
+        <!-- Subtle scanline overlay for aesthetic -->
+        <div
+          class="absolute inset-0 pointer-events-none bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAADCAYAAABS3WWCAAAAE0lEQVQIW2P8//8/A8P///8ZmB4Awx8Jwyu8UCAAAAAASUVORK5CYII=')] bg-repeat opacity-[0.03]">
+        </div>
+      </div>
+      } @else {
+      <div
+        class="w-full max-w-xl aspect-square bg-slate-900 rounded-2xl border-4 border-slate-800 flex items-center justify-center">
+        <span class="text-slate-600 font-mono flex items-center gap-2">
+          <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+            </path>
+          </svg>
+          Loading next...
+        </span>
+      </div>
+      }
+    </div>
+
+    <!-- Chat Interface (Right) -->
+    <div
+      class="flex-1 lg:w-2/5 flex flex-col bg-slate-900/60 backdrop-blur shadow-2xl relative border-l border-white/5">
+
+      <!-- Chat Feed -->
+      <div class="flex-grow p-4 lg:p-6 overflow-y-auto flex flex-col gap-4 custom-scrollbar" #chatFeed>
+
+        <div class="text-center font-mono text-xs text-slate-500 my-4 uppercase tracking-widest relative">
+          <span class="bg-slate-900 px-3 relative z-10">Concept {{ score() + 1 }}</span>
+          <div class="absolute inset-0 flex items-center">
+            <div class="w-full border-t border-slate-800"></div>
+          </div>
+        </div>
+
+        @for (msg of chatHistory(); track $index) {
+        <div class="group flex w-full animate-slide-in-up" [class.justify-end]="msg.role === 'user'">
+          <div class="max-w-[85%] rounded-2xl px-5 py-3 shadow-md border" [class.bg-indigo-600]="msg.role === 'user'"
+            [class.text-white]="msg.role === 'user'" [class.border-indigo-500]="msg.role === 'user'"
+            [class.rounded-tr-sm]="msg.role === 'user'" [class.bg-slate-800]="msg.role === 'model'"
+            [class.text-indigo-50]="msg.role === 'model'" [class.border-slate-700]="msg.role === 'model'"
+            [class.rounded-tl-none]="msg.role === 'model'">
+
+            <p class="whitespace-pre-wrap leading-relaxed text-sm lg:text-base" [innerHTML]="msg.text"></p>
+          </div>
+        </div>
+        }
+
+        @if (isThinking()) {
+        <div class="flex w-full animate-fade-in">
+          <div
+            class="bg-slate-800 border border-slate-700 rounded-2xl rounded-tl-none px-5 py-4 shadow-md flex items-center gap-1.5">
+            <div class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+            <div class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+            <div class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></div>
+          </div>
+        </div>
+        }
+      </div>
+
+      <!-- Input Area -->
+      <div class="p-4 bg-slate-900 border-t border-slate-800 shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.2)]">
+        <form class="relative flex" (ngSubmit)="sendGuess()">
+          <input #chatInput type="text" [ngModel]="userInput()" (ngModelChange)="userInput.set($event)" name="chatInput"
+            autocomplete="off" placeholder="Guess the concept or ask for a hint..."
+            class="w-full bg-slate-950 text-white rounded-xl py-4 pl-5 pr-14 border border-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-500 shadow-inner transition-colors"
+            [disabled]="isThinking()">
+          <button type="submit" [disabled]="!userInput().trim() || isThinking()"
+            class="absolute right-2 top-2 bottom-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white p-2 w-10 flex items-center justify-center rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed">
+            <svg class="w-5 h-5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+            </svg>
+          </button>
+        </form>
+        <div class="mt-3 text-center">
+          <p class="text-[10px] text-slate-500 font-mono">Powered by Firebase AI Logic ✨</p>
+        </div>
+      </div>
+
+      <!-- Score Animation Overlay -->
+      @if (scoreAnimation().visible) {
+      <div
+        class="absolute inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm pointer-events-none flex items-center justify-center overflow-hidden transition-all duration-300">
+        <div class="animate-score-popup mx-auto flex items-center justify-center">
+          <span
+            class="text-7xl xl:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-yellow-300 via-amber-400 to-orange-500 drop-shadow-[0_0_50px_rgba(251,191,36,1)] filter drop-shadow-2xl font-serif italic tracking-tighter">
+            +{{ scoreAnimation().points }}
+          </span>
+        </div>
+      </div>
+      }
+
+    </div>
+
+    <!-- Image Zoom Modal -->
+    @if (isImageZoomed() && currentConcept()?.imageArt) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-xl p-4 sm:p-8 animate-fade-in cursor-zoom-out"
+      (click)="toggleZoom()">
+
+      <button
+        class="absolute top-6 right-6 text-white bg-slate-800/50 hover:bg-slate-700/80 rounded-full p-3 backdrop-blur transition-all outline-none"
+        (click)="toggleZoom(); $event.stopPropagation()">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+
+      <img [src]="currentConcept().imageArt"
+        class="max-w-full max-h-full object-contain rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-slate-700/50"
+        (click)="$event.stopPropagation()">
+    </div>
+    }
+    }
+  </main>
+  } @else {
+  <!-- Empty State: No Deck Selected -->
+  <div class="flex-grow flex flex-col items-center justify-center p-8 text-center bg-slate-900/40 backdrop-blur">
+    <div class="w-24 h-24 mb-6 rounded-2xl bg-gradient-to-br from-slate-500 to-slate-700 p-1 shadow-lg">
+      <div class="w-full h-full bg-slate-950 rounded-xl flex items-center justify-center">
+        <svg class="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+          </path>
+        </svg>
+      </div>
+    </div>
+    <h2 class="text-4xl font-black text-white drop-shadow-lg mb-4">No Deck Selected</h2>
+    <p class="text-slate-400 max-w-md mx-auto mb-8 leading-relaxed">Head over to the Flashcard Library to choose a deck
+      to play with the Game Master.</p>
+    <button routerLink="/flashcard-library"
+      class="px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white font-bold text-lg rounded-xl transition-all shadow border border-slate-700 cursor-pointer">
+      Go to Library
+    </button>
+  </div>
+  }
+</div>
