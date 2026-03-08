@@ -1,4 +1,4 @@
-package com.firebaseailogic.memotattoo.ui.learning
+package com.firebaseailogic.memotattoo.ui.flashcards
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,7 +33,7 @@ data class FlashcardDeckSummary(
 @Composable
 fun FlashcardHubScreen(
         navController: NavController,
-        userProfileViewModel: com.firebaseailogic.memotattoo.ui.learning.UserProfileViewModel =
+        userProfileViewModel: com.firebaseailogic.memotattoo.ui.flashcards.UserProfileViewModel =
                 androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     var myDecks by remember { mutableStateOf<List<FlashcardDeckSummary>>(emptyList()) }

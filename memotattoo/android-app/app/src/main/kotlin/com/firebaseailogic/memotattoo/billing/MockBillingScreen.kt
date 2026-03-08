@@ -18,7 +18,7 @@ import com.google.firebase.firestore.FieldValue
 @Composable
 fun MockBillingScreen(
         navController: NavController,
-        userProfileViewModel: com.firebaseailogic.memotattoo.ui.learning.UserProfileViewModel =
+        userProfileViewModel: com.firebaseailogic.memotattoo.ui.flashcards.UserProfileViewModel =
                 androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val userProfile by userProfileViewModel.userProfile.collectAsState()

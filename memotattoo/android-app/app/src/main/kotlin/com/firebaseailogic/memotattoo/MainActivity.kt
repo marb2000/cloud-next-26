@@ -8,7 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.firebaseailogic.memotattoo.billing.MockBillingScreen
-import com.firebaseailogic.memotattoo.ui.learning.GameSessionScreen
+import com.firebaseailogic.memotattoo.ui.flashcards.GameSessionScreen
 import com.firebaseailogic.memotattoo.ui.theme.MemoTattooTheme
 
 class MainActivity : ComponentActivity() {
@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
             MemoTattooTheme {
                 val navController = rememberNavController()
                 val userProfileViewModel:
-                        com.firebaseailogic.memotattoo.ui.learning.UserProfileViewModel =
+                        com.firebaseailogic.memotattoo.ui.flashcards.UserProfileViewModel =
                         androidx.lifecycle.viewmodel.compose.viewModel()
 
                 NavHost(navController = navController, startDestination = "login") {
@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     composable("daily_mission") {
-                        com.firebaseailogic.memotattoo.ui.learning.FlashcardHubScreen(
+                        com.firebaseailogic.memotattoo.ui.flashcards.FlashcardHubScreen(
                                 navController = navController,
                                 userProfileViewModel = userProfileViewModel
                         )
@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
                         GameSessionScreen(navController = navController, deckId = deckId)
                     }
                     composable("create_deck") {
-                        com.firebaseailogic.memotattoo.ui.learning.CreateDeckScreen(
+                        com.firebaseailogic.memotattoo.ui.flashcards.CreateDeckScreen(
                                 navController = navController,
                                 userProfileViewModel = userProfileViewModel
                         )

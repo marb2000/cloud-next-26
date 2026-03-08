@@ -1,4 +1,4 @@
-package com.firebaseailogic.memotattoo.ui.learning
+package com.firebaseailogic.memotattoo.ui.flashcards
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -40,7 +40,7 @@ data class ConceptDraft(
 @Composable
 fun CreateDeckScreen(
         navController: NavController,
-        userProfileViewModel: com.firebaseailogic.memotattoo.ui.learning.UserProfileViewModel =
+        userProfileViewModel: com.firebaseailogic.memotattoo.ui.flashcards.UserProfileViewModel =
                 androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     var draftState by remember { mutableStateOf(DraftState()) }
