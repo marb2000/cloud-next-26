@@ -65,7 +65,7 @@ fun SmartChallengeScreen(
 
         val listState = rememberLazyListState()
         var pointsAnimTrigger by remember { mutableStateOf<Int?>(null) }
-        var timeUpAnimTrigger by remember { mutableStateOf(false) }
+        var timeUpAnimTrigger by remember { mutableStateOf<String?>(null) }
 
         val coroutineScope = rememberCoroutineScope()
 
@@ -90,114 +90,111 @@ fun SmartChallengeScreen(
                         }
                         if (timeRemaining == 0 && !isSubmitting) {
                                 isTimerRunning = false
-                                timeUpAnimTrigger = true
-                                kotlinx.coroutines.delay(2500L)
-                                timeUpAnimTrigger = false
-                                messages.clear()
+                                coroutineScope.launch {
+                                        val expiredTerm =
+                                                currentConcept?.get("term")
+                                                        ?: currentConcept?.get("original") ?: ""
+                                        
+                                        timeUpAnimTrigger = expiredTerm.toString()
+                                        kotlinx.coroutines.delay(3000L)
+                                        timeUpAnimTrigger = null
+                                        messages.clear()
 
-                                val expiredTerm =
-                                        currentConcept?.get("term")
-                                                ?: currentConcept?.get("original") ?: ""
-                                messages.add(
-                                        ChatMessage(
-                                                false,
-                                                "Time's up! The correct answer was **$expiredTerm**. Let's move to the next one."
-                                        )
-                                )
+                                        if (remainingConcepts.isNotEmpty()) {
+                                                currentConcept = remainingConcepts.removeAt(0)
 
-                                if (remainingConcepts.isNotEmpty()) {
-                                        currentConcept = remainingConcepts.removeAt(0)
-
-                                        val playedCount = sessionTotalItems - remainingConcepts.size
-                                        if (!hasPaidForSession &&
-                                                        sessionTotalItems > 0 &&
-                                                        playedCount >= (sessionTotalItems / 2)
-                                        ) {
-                                                hasPaidForSession = true
-                                                val uid = FirebaseManager.auth.currentUser?.uid
-                                                if (uid != null) {
-                                                        try {
-                                                                if (energyBolts >= 1) {
-                                                                        FirebaseManager.firestore
-                                                                                .collection("Users")
-                                                                                .document(uid)
-                                                                                .update(
-                                                                                        "energy_bolts",
-                                                                                        energyBolts -
-                                                                                                1
-                                                                                )
-                                                                                .await()
-                                                                } else {
-                                                                        navController.navigate(
-                                                                                "billing"
-                                                                        )
-                                                                }
-                                                                if (deckOwnerId != null &&
-                                                                                deckOwnerId != uid
-                                                                ) {
-                                                                        val creatorRef =
-                                                                                FirebaseManager
-                                                                                        .firestore
-                                                                                        .collection(
-                                                                                                "Users"
-                                                                                        )
-                                                                                        .document(
-                                                                                                deckOwnerId!!
-                                                                                        )
-                                                                        val creatorSnap =
-                                                                                creatorRef
-                                                                                        .get()
-                                                                                        .await()
-                                                                        if (creatorSnap.exists()) {
-                                                                                val creatorBolts =
-                                                                                        creatorSnap
-                                                                                                .getLong(
-                                                                                                        "energy_bolts"
-                                                                                                )
-                                                                                                ?: 0L
-                                                                                creatorRef
+                                                val playedCount = sessionTotalItems - remainingConcepts.size
+                                                if (!hasPaidForSession &&
+                                                                sessionTotalItems > 0 &&
+                                                                playedCount >= (sessionTotalItems / 2)
+                                                ) {
+                                                        hasPaidForSession = true
+                                                        val uid = FirebaseManager.auth.currentUser?.uid
+                                                        if (uid != null) {
+                                                                try {
+                                                                        if (energyBolts >= 1) {
+                                                                                FirebaseManager.firestore
+                                                                                        .collection("Users")
+                                                                                        .document(uid)
                                                                                         .update(
                                                                                                 "energy_bolts",
-                                                                                                creatorBolts +
+                                                                                                energyBolts -
                                                                                                         1
                                                                                         )
                                                                                         .await()
+                                                                        } else {
+                                                                                navController.navigate(
+                                                                                        "billing"
+                                                                                )
                                                                         }
+                                                                        if (deckOwnerId != null &&
+                                                                                        deckOwnerId != uid
+                                                                        ) {
+                                                                                val creatorRef =
+                                                                                        FirebaseManager
+                                                                                                .firestore
+                                                                                                .collection(
+                                                                                                        "Users"
+                                                                                                )
+                                                                                                .document(
+                                                                                                        deckOwnerId!!
+                                                                                                )
+                                                                                val creatorSnap =
+                                                                                        creatorRef
+                                                                                                .get()
+                                                                                                .await()
+                                                                                if (creatorSnap.exists()) {
+                                                                                        val creatorBolts =
+                                                                                                creatorSnap
+                                                                                                        .getLong(
+                                                                                                                "energy_bolts"
+                                                                                                        )
+                                                                                                        ?: 0L
+                                                                                        creatorRef
+                                                                                                .update(
+                                                                                                        "energy_bolts",
+                                                                                                        creatorBolts +
+                                                                                                                1
+                                                                                                )
+                                                                                                .await()
+                                                                                }
+                                                                        }
+                                                                } catch (e: Exception) {
+                                                                        e.printStackTrace()
                                                                 }
-                                                        } catch (e: Exception) {
-                                                                e.printStackTrace()
                                                         }
                                                 }
-                                        }
 
-                                        val newTerm =
-                                                currentConcept?.get("term")
-                                                        ?: currentConcept?.get("original") ?: ""
-                                        val newDef =
-                                                currentConcept?.get("definition")
-                                                        ?: currentConcept?.get("translation") ?: ""
-                                        isSubmitting = true
-                                        try {
-                                                val advanceResponse =
-                                                        chat.value?.sendMessage(
-                                                                "The timer ran out. We advanced to the next concept. New target term is '$newTerm' and its definition is '$newDef'. Start this round now!"
+                                                val newTerm =
+                                                        currentConcept?.get("term")
+                                                                ?: currentConcept?.get("original") ?: ""
+                                                val newDef =
+                                                        currentConcept?.get("definition")
+                                                                ?: currentConcept?.get("translation") ?: ""
+                                                isSubmitting = true
+                                                try {
+                                                        val advanceResponse =
+                                                                chat.value?.sendMessage(
+                                                                        "The timer ran out. We advanced to the next concept. New target term is '$newTerm' and its definition is '$newDef'. Start this round now!"
+                                                                )
+                                                        messages.add(
+                                                                ChatMessage(
+                                                                        false,
+                                                                        advanceResponse?.text
+                                                                                ?: "Let's guess the next one!"
+                                                                )
                                                         )
-                                                messages.add(
-                                                        ChatMessage(
-                                                                false,
-                                                                advanceResponse?.text
-                                                                        ?: "Let's guess the next one!"
-                                                        )
-                                                )
-                                                timeRemaining = 60
-                                                isTimerRunning = true
-                                        } catch (e: Exception) {
-                                                e.printStackTrace()
-                                        } finally {
-                                                isSubmitting = false
+                                                        timeRemaining = 60
+                                                        isTimerRunning = true
+                                                } catch (e: Exception) {
+                                                        e.printStackTrace()
+                                                } finally {
+                                                        isSubmitting = false
+                                                }
+                                        } else {
+                                                currentConcept = null
+                                                isTimerRunning = false
                                         }
-                                } else {
-                                        currentConcept = null
                                 }
                         }
                 }
@@ -801,7 +798,7 @@ fun SmartChallengeScreen(
                 // Time's Up Overlay
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         AnimatedVisibility(
-                                visible = timeUpAnimTrigger,
+                                visible = timeUpAnimTrigger != null,
                                 enter =
                                         fadeIn(animationSpec = tween(300)) +
                                                 slideInVertically(initialOffsetY = { -it }),
@@ -815,16 +812,23 @@ fun SmartChallengeScreen(
                                         shadowElevation = 12.dp,
                                         modifier = Modifier.padding(16.dp)
                                 ) {
-                                        Text(
-                                                "⏰ Time's Up!",
-                                                modifier =
-                                                        Modifier.padding(
-                                                                horizontal = 32.dp,
-                                                                vertical = 24.dp
-                                                        ),
-                                                style = MaterialTheme.typography.displayMedium,
-                                                color = MaterialTheme.colorScheme.onErrorContainer
-                                        )
+                                        Column(
+                                                modifier = Modifier.padding(horizontal = 32.dp, vertical = 24.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                                Text(
+                                                        "⏰ Time's Up!",
+                                                        style = MaterialTheme.typography.displayMedium,
+                                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                                )
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                Text(
+                                                        "The correct word was: ${timeUpAnimTrigger ?: ""}",
+                                                        style = MaterialTheme.typography.titleLarge,
+                                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                                        fontWeight = FontWeight.Bold
+                                                )
+                                        }
                                 }
                         }
 
