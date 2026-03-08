@@ -1,4 +1,4 @@
-package com.firebaseailogic.memotattoo.ui.learning
+package com.firebaseailogic.memotattoo.ui.flashcards
 
 import android.util.Log
 import androidx.lifecycle.ViewModel

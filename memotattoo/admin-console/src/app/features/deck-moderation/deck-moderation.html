@@ -87,8 +87,13 @@
 </div>
 
 @if (pendingAction()) {
-<app-confirm-dialog [title]="pendingAction()!.title" [message]="pendingAction()!.message"
-  [confirmText]="pendingAction()!.confirmText" [intent]="pendingAction()!.intent" (confirm)="onConfirm()"
+<app-confirm-dialog 
+  [isOpen]="true"
+  [title]="pendingAction()!.title" 
+  [message]="pendingAction()!.message"
+  [confirmText]="pendingAction()!.confirmText" 
+  [intent]="pendingAction()!.intent" 
+  (confirm)="onConfirm()"
   (cancel)="onCancel()">
 </app-confirm-dialog>
 }

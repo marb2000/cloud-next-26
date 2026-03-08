@@ -1,4 +1,4 @@
-package com.firebaseailogic.memotattoo.ui.learning
+package com.firebaseailogic.memotattoo.ui.flashcards
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -39,7 +39,7 @@ data class ChatMessage(val isUser: Boolean, val text: String, val isSystem: Bool
 fun GameSessionScreen(
         navController: NavController,
         deckId: String,
-        userProfileViewModel: com.firebaseailogic.memotattoo.ui.learning.UserProfileViewModel =
+        userProfileViewModel: com.firebaseailogic.memotattoo.ui.flashcards.UserProfileViewModel =
                 androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
         var isLoading by remember { mutableStateOf(true) }
