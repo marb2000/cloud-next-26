@@ -18,7 +18,7 @@ import androidx.navigation.NavController
 import com.firebaseailogic.memotattoo.data.FirebaseManager
 import kotlinx.coroutines.tasks.await
 
-data class Mission(
+data class FlashcardDeckSummary(
         val id: String,
         val title: String,
         val description: String,
@@ -31,13 +31,13 @@ data class Mission(
 )
 
 @Composable
-fun DailyMissionScreen(
+fun FlashcardHubScreen(
         navController: NavController,
         userProfileViewModel: com.firebaseailogic.memotattoo.ui.learning.UserProfileViewModel =
                 androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
-    var myMissions by remember { mutableStateOf<List<Mission>>(emptyList()) }
-    var publicMissions by remember { mutableStateOf<List<Mission>>(emptyList()) }
+    var myDecks by remember { mutableStateOf<List<FlashcardDeckSummary>>(emptyList()) }
+    var publicDecks by remember { mutableStateOf<List<FlashcardDeckSummary>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
@@ -60,10 +60,10 @@ fun DailyMissionScreen(
                     }
 
             val snapshot = FirebaseManager.firestore.collection("FlashcardDecks").get().await()
-            val loadedMissions =
+            val loadedDecks =
                     snapshot.documents.map { doc ->
                         val contentBase = doc.get("contentBase") as? Map<String, Any>
-                        Mission(
+                        FlashcardDeckSummary(
                                 id = doc.id,
                                 title = contentBase?.get("title") as? String ?: "Unknown Deck",
                                 description = doc.getString("topic") ?: "Custom flashcard deck.",
@@ -75,10 +75,10 @@ fun DailyMissionScreen(
                                 bestScore = scoreMap[doc.id] ?: 0
                         )
                     }
-            val allMissions = loadedMissions
+            val allDecks = loadedDecks
 
-            myMissions = allMissions.filter { it.ownerId == currentUid }
-            publicMissions = allMissions.filter { it.isPublic }
+            myDecks = allDecks.filter { it.ownerId == currentUid }
+            publicDecks = allDecks.filter { it.isPublic }
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
@@ -153,27 +153,27 @@ fun DailyMissionScreen(
                     CircularProgressIndicator()
                 }
             } else {
-                val currentList = if (selectedTabIndex == 0) myMissions else publicMissions
+                val currentList = if (selectedTabIndex == 0) myDecks else publicDecks
 
                 LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.weight(1f)
                 ) {
-                    items(currentList) { mission ->
-                        MissionCard(
-                                mission = mission,
-                                onClick = { navController.navigate("challenge/${mission.id}") },
+                    items(currentList) { deck ->
+                        DeckCard(
+                                deck = deck,
+                                onClick = { navController.navigate("challenge/${deck.id}") },
                                 onMakePublic = {
                                     // Update Firestore document to enter the moderation queue
                                     FirebaseManager.firestore
                                             .collection("FlashcardDecks")
-                                            .document(mission.id)
+                                            .document(deck.id)
                                             .update(mapOf("status" to "pending"))
                                             .addOnSuccessListener {
                                                 // Optimistically update the local list
-                                                myMissions =
-                                                        myMissions.map {
-                                                            if (it.id == mission.id)
+                                                myDecks =
+                                                        myDecks.map {
+                                                            if (it.id == deck.id)
                                                                     it.copy(status = "pending")
                                                             else it
                                                         }
@@ -188,7 +188,7 @@ fun DailyMissionScreen(
 }
 
 @Composable
-fun MissionCard(mission: Mission, onClick: () -> Unit, onMakePublic: () -> Unit) {
+fun DeckCard(deck: FlashcardDeckSummary, onClick: () -> Unit, onMakePublic: () -> Unit) {
     Surface(
             modifier =
                     Modifier.fillMaxWidth()
@@ -205,17 +205,17 @@ fun MissionCard(mission: Mission, onClick: () -> Unit, onMakePublic: () -> Unit)
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                                text = mission.title,
+                                text = deck.title,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        if (mission.isPublic) {
+                        if (deck.isPublic) {
                             Spacer(modifier = Modifier.width(8.dp))
                             Badge(containerColor = MaterialTheme.colorScheme.tertiary) {
                                 Text("Public", color = MaterialTheme.colorScheme.onTertiary)
                             }
-                        } else if (mission.status == "pending") {
+                        } else if (deck.status == "pending") {
                             Spacer(modifier = Modifier.width(8.dp))
                             Badge(containerColor = MaterialTheme.colorScheme.secondary) {
                                 Text("In Review", color = MaterialTheme.colorScheme.onSecondary)
@@ -224,13 +224,13 @@ fun MissionCard(mission: Mission, onClick: () -> Unit, onMakePublic: () -> Unit)
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                            text = mission.description,
+                            text = deck.description,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
-                    if (mission.bestScore > 0) {
+                    if (deck.bestScore > 0) {
                         Text(
-                                text = "Best Score: ${mission.bestScore}",
+                                text = "Best Score: ${deck.bestScore}",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(top = 4.dp)
@@ -249,7 +249,7 @@ fun MissionCard(mission: Mission, onClick: () -> Unit, onMakePublic: () -> Unit)
                 ) { Text(text = "▶", color = MaterialTheme.colorScheme.primary) }
             }
             // Add Mod actions for decks the user owns that aren't public yet
-            if (!mission.isPublic && mission.status != "pending" && mission.type == "FlashcardDeck"
+            if (!deck.isPublic && deck.status != "pending" && deck.type == "FlashcardDeck"
             ) {
                 HorizontalDivider(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)

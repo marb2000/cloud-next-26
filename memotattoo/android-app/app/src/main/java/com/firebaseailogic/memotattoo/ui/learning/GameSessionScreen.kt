@@ -36,7 +36,7 @@ data class ChatMessage(val isUser: Boolean, val text: String, val isSystem: Bool
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SmartChallengeScreen(
+fun GameSessionScreen(
         navController: NavController,
         deckId: String,
         userProfileViewModel: com.firebaseailogic.memotattoo.ui.learning.UserProfileViewModel =
@@ -867,7 +867,7 @@ fun SmartChallengeScreen(
                         }
                 } // End Overlay Box
         } // End Main Box
-} // End SmartChallengeScreen
+} // End GameSessionScreen
 
 @Composable
 fun ChatBubble(message: ChatMessage) {

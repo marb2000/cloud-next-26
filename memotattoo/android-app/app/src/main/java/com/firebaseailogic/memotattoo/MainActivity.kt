@@ -8,7 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.firebaseailogic.memotattoo.billing.MockBillingScreen
-import com.firebaseailogic.memotattoo.ui.learning.SmartChallengeScreen
+import com.firebaseailogic.memotattoo.ui.learning.GameSessionScreen
 import com.firebaseailogic.memotattoo.ui.theme.MemoTattooTheme
 
 class MainActivity : ComponentActivity() {
@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     composable("daily_mission") {
-                        com.firebaseailogic.memotattoo.ui.learning.DailyMissionScreen(
+                        com.firebaseailogic.memotattoo.ui.learning.FlashcardHubScreen(
                                 navController = navController,
                                 userProfileViewModel = userProfileViewModel
                         )
@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
                     composable("challenge/{deckId}") { backStackEntry ->
                         val deckId =
                                 backStackEntry.arguments?.getString("deckId") ?: return@composable
-                        SmartChallengeScreen(navController = navController, deckId = deckId)
+                        GameSessionScreen(navController = navController, deckId = deckId)
                     }
                     composable("create_deck") {
                         com.firebaseailogic.memotattoo.ui.learning.CreateDeckScreen(
