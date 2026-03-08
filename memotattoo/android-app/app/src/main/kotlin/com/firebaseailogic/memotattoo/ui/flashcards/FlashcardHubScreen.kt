@@ -163,6 +163,7 @@ fun FlashcardHubScreen(
                         DeckCard(
                                 deck = deck,
                                 onClick = { navController.navigate("challenge/${deck.id}") },
+                                onEdit = { navController.navigate("create_deck?draftId=${deck.id}") },
                                 onMakePublic = {
                                     // Update Firestore document to enter the moderation queue
                                     FirebaseManager.firestore
@@ -188,7 +189,7 @@ fun FlashcardHubScreen(
 }
 
 @Composable
-fun DeckCard(deck: FlashcardDeckSummary, onClick: () -> Unit, onMakePublic: () -> Unit) {
+fun DeckCard(deck: FlashcardDeckSummary, onClick: () -> Unit, onEdit: () -> Unit, onMakePublic: () -> Unit) {
     Surface(
             modifier =
                     Modifier.fillMaxWidth()
@@ -254,8 +255,14 @@ fun DeckCard(deck: FlashcardDeckSummary, onClick: () -> Unit, onMakePublic: () -
                 HorizontalDivider(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
                 )
-                TextButton(onClick = { onMakePublic() }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Publish to Global Library", color = MaterialTheme.colorScheme.primary)
+                if (deck.status == "draft") {
+                    TextButton(onClick = { onEdit() }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Continue Editing Draft", color = MaterialTheme.colorScheme.primary)
+                    }
+                } else {
+                    TextButton(onClick = { onMakePublic() }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Publish to Global Library", color = MaterialTheme.colorScheme.primary)
+                    }
                 }
             }
         }
