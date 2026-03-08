@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,7 +28,8 @@ data class DraftState(
         var title: String = "",
         var concepts: MutableList<ConceptDraft> = mutableListOf(),
         var globalArtDirection: String = "",
-        var globalArtImageUri: String? = null
+        var globalArtImageUri: String? = null,
+        var draftId: String? = null
 )
 
 data class ConceptDraft(
@@ -40,13 +42,53 @@ data class ConceptDraft(
 @Composable
 fun CreateDeckScreen(
         navController: NavController,
+        draftId: String? = null,
         userProfileViewModel: com.firebaseailogic.memotattoo.ui.flashcards.UserProfileViewModel =
                 androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
-    var draftState by remember { mutableStateOf(DraftState()) }
-    var isLoading by remember { mutableStateOf(false) }
+    var draftState by remember { mutableStateOf(DraftState(draftId = draftId)) }
+    var isLoading by remember { mutableStateOf(draftId != null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(draftId) {
+        if (draftId != null) {
+            try {
+                val doc = FirebaseManager.firestore.collection("FlashcardDecks").document(draftId).get().await()
+                if (doc.exists()) {
+                    val contentBase = doc.get("contentBase") as? Map<String, Any>
+                    val title = contentBase?.get("title") as? String ?: doc.getString("title") ?: ""
+                    val topic = doc.getString("topic") ?: ""
+                    val items = doc.get("items") as? List<Map<String, String>> ?: emptyList()
+                    val artDir = doc.getString("artDirection") ?: ""
+                    val artRef = doc.getString("artReferenceImage")
+                    
+                    val parsedConcepts = items.map { 
+                        ConceptDraft(
+                            term = it["original"] ?: "",
+                            definition = it["translation"] ?: "",
+                            imageUrl = it["image"]?.takeIf { img -> img.isNotBlank() }
+                        ) 
+                    }
+                    
+                    draftState = DraftState(
+                        step = if (parsedConcepts.isNotEmpty()) 5 else 1,
+                        topic = topic,
+                        numberOfItems = parsedConcepts.size.takeIf { it > 0 }?.toString() ?: "5",
+                        title = title,
+                        concepts = parsedConcepts.toMutableList(),
+                        globalArtDirection = artDir,
+                        globalArtImageUri = artRef,
+                        draftId = draftId
+                    )
+                }
+            } catch (e: Exception) {
+                errorMessage = "Failed to load draft: ${e.message}"
+            } finally {
+                isLoading = false
+            }
+        }
+    }
 
     val userProfile by userProfileViewModel.userProfile.collectAsState()
     val energyBolts = userProfile?.energyBolts ?: 0
@@ -64,8 +106,58 @@ fun CreateDeckScreen(
                             }
                         },
                         actions = {
-                            TextButton(onClick = { /* Save Draft Stub */}) {
-                                Text("Save Draft", color = MaterialTheme.colorScheme.primary)
+                            var isSavingDraft by remember { mutableStateOf(false) }
+                            TextButton(
+                                onClick = {
+                                    if (isSavingDraft) return@TextButton
+                                    isSavingDraft = true
+                                    coroutineScope.launch {
+                                        try {
+                                            val uid = FirebaseManager.auth.currentUser?.uid ?: return@launch
+                                            val itemsList = draftState.concepts.map { concept ->
+                                                mapOf(
+                                                    "original" to concept.term,
+                                                    "translation" to concept.definition,
+                                                    "image" to (concept.imageUrl ?: "")
+                                                )
+                                            }
+                                            val deckData = hashMapOf(
+                                                "title" to draftState.title.ifEmpty { "Untitled Draft" },
+                                                "contentBase" to mapOf("title" to draftState.title.ifEmpty { "Untitled Draft" }),
+                                                "topic" to draftState.topic,
+                                                "language" to "en",
+                                                "authorId" to uid,
+                                                "owner_id" to uid,
+                                                "isPublic" to false,
+                                                "status" to "draft", 
+                                                "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                                                "items" to itemsList,
+                                                "artDirection" to draftState.globalArtDirection,
+                                                "artReferenceImage" to (draftState.globalArtImageUri ?: "")
+                                            )
+                                            
+                                            val docRef = if (draftState.draftId != null) {
+                                                FirebaseManager.firestore.collection("FlashcardDecks").document(draftState.draftId!!)
+                                            } else {
+                                                FirebaseManager.firestore.collection("FlashcardDecks").document()
+                                            }
+                                            docRef.set(deckData).await()
+                                            draftState = draftState.copy(draftId = docRef.id)
+                                            navController.popBackStack()
+                                        } catch (e: Exception) {
+                                            errorMessage = "Failed to save: ${e.message}"
+                                        } finally {
+                                            isSavingDraft = false
+                                        }
+                                    }
+                                },
+                                enabled = !isSavingDraft
+                            ) {
+                                if (isSavingDraft) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.primary, strokeWidth = 2.dp)
+                                } else {
+                                    Text("Save Draft", color = MaterialTheme.colorScheme.primary)
+                                }
                             }
                         },
                         colors =
@@ -102,7 +194,6 @@ fun CreateDeckScreen(
                                     2 -> "Content"
                                     3 -> "Art Direction"
                                     4 -> "Images"
-                                    5 -> "Publish"
                                     else -> ""
                                 },
                         style = MaterialTheme.typography.bodyMedium,
@@ -134,7 +225,54 @@ fun CreateDeckScreen(
                     2 -> Step2Content(draftState) { draftState = it }
                     3 -> Step3ArtDirection(draftState) { draftState = it }
                     4 -> Step4Images(draftState, energyBolts) { draftState = it }
-                    5 -> Step5Publish(draftState) { draftState = it }
+                    5 -> {
+                        var isPublishing by remember { mutableStateOf(false) }
+                        Step5Publish(
+                                state = draftState,
+                                isPublishing = isPublishing,
+                                onPublish = { isPublic ->
+                                    if (isPublishing) return@Step5Publish
+                                    isPublishing = true
+                                    coroutineScope.launch {
+                                        try {
+                                            val uid = FirebaseManager.auth.currentUser?.uid ?: throw Exception("Not logged in")
+                                            val itemsList = draftState.concepts.map { concept ->
+                                                mapOf(
+                                                    "original" to concept.term,
+                                                    "translation" to concept.definition,
+                                                    "image" to (concept.imageUrl ?: "")
+                                                )
+                                            }
+                                            val deckData = hashMapOf(
+                                                    "title" to draftState.title,
+                                                    "contentBase" to mapOf("title" to draftState.title),
+                                                    "topic" to draftState.topic,
+                                                    "language" to "en",
+                                                    "authorId" to uid,
+                                                    "owner_id" to uid,
+                                                    "isPublic" to isPublic,
+                                                    "status" to if (isPublic) "pending" else "private",
+                                                    "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                                                    "items" to itemsList,
+                                                    "artDirection" to draftState.globalArtDirection,
+                                                    "artReferenceImage" to (draftState.globalArtImageUri ?: "")
+                                            )
+                                            val docRef = if (draftState.draftId != null) {
+                                                FirebaseManager.firestore.collection("FlashcardDecks").document(draftState.draftId!!)
+                                            } else {
+                                                FirebaseManager.firestore.collection("FlashcardDecks").document()
+                                            }
+                                            docRef.set(deckData).await()
+                                            navController.popBackStack()
+                                        } catch (e: Exception) {
+                                            errorMessage = "Publish Failed: ${e.message}"
+                                        } finally {
+                                            isPublishing = false
+                                        }
+                                    }
+                                }
+                        )
+                    }
                 }
             }
 
@@ -235,137 +373,7 @@ fun CreateDeckScreen(
                         }
                     }
                 } else {
-                    var isPublishing by remember { mutableStateOf(false) }
-
-                    Row(
-                            modifier = Modifier.weight(1f).padding(start = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                                onClick = {
-                                    if (isPublishing) return@OutlinedButton
-                                    isPublishing = true
-                                    coroutineScope.launch {
-                                        try {
-                                            val uid =
-                                                    FirebaseManager.auth.currentUser?.uid
-                                                            ?: throw Exception("Not logged in")
-
-                                            // Build concept map
-                                            val itemsList =
-                                                    draftState.concepts.map { concept ->
-                                                        mapOf(
-                                                                "original" to concept.term,
-                                                                "translation" to concept.definition,
-                                                                "image" to (concept.imageUrl ?: "")
-                                                        )
-                                                    }
-
-                                            val deckData =
-                                                    hashMapOf(
-                                                            "title" to draftState.title,
-                                                            "language" to "en", // Default mapped to
-                                                            // Android
-                                                            "authorId" to uid,
-                                                            "isPublic" to true,
-                                                            "status" to "pending",
-                                                            "createdAt" to
-                                                                    com.google.firebase.firestore
-                                                                            .FieldValue
-                                                                            .serverTimestamp(),
-                                                            "items" to itemsList,
-                                                            "artDirection" to
-                                                                    draftState.globalArtDirection,
-                                                            "artReferenceImage" to
-                                                                    (draftState.globalArtImageUri
-                                                                            ?: "")
-                                                    )
-
-                                            FirebaseManager.firestore
-                                                    .collection("FlashcardDecks")
-                                                    .document() // Auto-ID
-                                                    .set(deckData)
-                                                    .await()
-
-                                            navController.popBackStack()
-                                        } catch (e: Exception) {
-                                            errorMessage = "Publish Failed: ${e.message}"
-                                        } finally {
-                                            isPublishing = false
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                                enabled = !isPublishing
-                        ) { Text("Public Moderation") }
-
-                        Button(
-                                onClick = {
-                                    if (isPublishing) return@Button
-                                    isPublishing = true
-                                    coroutineScope.launch {
-                                        try {
-                                            val uid =
-                                                    FirebaseManager.auth.currentUser?.uid
-                                                            ?: throw Exception("Not logged in")
-
-                                            // Build concept map
-                                            val itemsList =
-                                                    draftState.concepts.map { concept ->
-                                                        mapOf(
-                                                                "original" to concept.term,
-                                                                "translation" to concept.definition,
-                                                                "image" to (concept.imageUrl ?: "")
-                                                        )
-                                                    }
-
-                                            val deckData =
-                                                    hashMapOf(
-                                                            "title" to draftState.title,
-                                                            "language" to "en", // Default mapped to
-                                                            // Android
-                                                            "authorId" to uid,
-                                                            "isPublic" to false,
-                                                            "status" to "private",
-                                                            "createdAt" to
-                                                                    com.google.firebase.firestore
-                                                                            .FieldValue
-                                                                            .serverTimestamp(),
-                                                            "items" to itemsList,
-                                                            "artDirection" to
-                                                                    draftState.globalArtDirection,
-                                                            "artReferenceImage" to
-                                                                    (draftState.globalArtImageUri
-                                                                            ?: "")
-                                                    )
-
-                                            FirebaseManager.firestore
-                                                    .collection("FlashcardDecks")
-                                                    .document() // Auto-ID
-                                                    .set(deckData)
-                                                    .await()
-
-                                            navController.popBackStack()
-                                        } catch (e: Exception) {
-                                            errorMessage = "Publish Failed: ${e.message}"
-                                        } finally {
-                                            isPublishing = false
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                                enabled = !isPublishing
-                        ) {
-                            if (isPublishing) {
-                                CircularProgressIndicator(
-                                        modifier = Modifier.size(20.dp),
-                                        color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            } else {
-                                Text("Publish (Private)")
-                            }
-                        }
-                    }
+                    Spacer(modifier = Modifier.weight(1f).padding(start = 8.dp))
                 }
             }
         }
@@ -677,7 +685,7 @@ fun Step4Images(state: DraftState, energyBolts: Int, onStateChange: (DraftState)
 }
 
 @Composable
-fun Step5Publish(state: DraftState, onStateChange: (DraftState) -> Unit) {
+fun Step5Publish(state: DraftState, isPublishing: Boolean, onPublish: (Boolean) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
                 "Ready to Publish",
@@ -695,15 +703,25 @@ fun Step5Publish(state: DraftState, onStateChange: (DraftState) -> Unit) {
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                 )
-                Text("Title: ${state.title}")
-                Text("Topic: ${state.topic}")
-                Text("Cards: ${state.concepts.size}")
+                Row { Text("Title: ", fontWeight = FontWeight.Bold); Text(state.title) }
+                Row { Text("Topic: ", fontWeight = FontWeight.Bold); Text(state.topic) }
+                Row { Text("Cards: ", fontWeight = FontWeight.Bold); Text("${state.concepts.size}") }
+                
                 val missingImages = state.concepts.count { it.imageUrl == null }
                 if (missingImages > 0) {
-                    Text(
-                            "$missingImages cards are missing images.",
-                            color = MaterialTheme.colorScheme.error
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "Warning",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(end = 4.dp).size(16.dp)
+                        )
+                        Text(
+                                "$missingImages cards are missing images.",
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }
@@ -711,12 +729,21 @@ fun Step5Publish(state: DraftState, onStateChange: (DraftState) -> Unit) {
         Spacer(modifier = Modifier.weight(1f))
 
         Button(
-                onClick = { /* TODO: Submit Private */},
+                onClick = { onPublish(false) },
+                enabled = !isPublishing,
                 modifier = Modifier.fillMaxWidth().height(56.dp)
-        ) { Text("Publish to My Decks (Private)") }
+        ) { 
+            if (isPublishing) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+            } else {
+                Text("Publish to My Decks (Private)") 
+            }
+        }
 
+        val missingImages = state.concepts.count { it.imageUrl == null }
         OutlinedButton(
-                onClick = { /* TODO: Submit Public */},
+                onClick = { onPublish(true) },
+                enabled = !isPublishing && missingImages == 0,
                 modifier = Modifier.fillMaxWidth().height(56.dp)
         ) { Text("Submit for Public Moderation") }
     }

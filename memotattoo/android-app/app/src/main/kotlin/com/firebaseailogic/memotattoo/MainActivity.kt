@@ -40,9 +40,14 @@ class MainActivity : ComponentActivity() {
                                 backStackEntry.arguments?.getString("deckId") ?: return@composable
                         GameSessionScreen(navController = navController, deckId = deckId)
                     }
-                    composable("create_deck") {
+                    composable(
+                        "create_deck?draftId={draftId}",
+                        arguments = listOf(androidx.navigation.navArgument("draftId") { nullable = true; defaultValue = null })
+                    ) { backStackEntry ->
+                        val draftId = backStackEntry.arguments?.getString("draftId")
                         com.firebaseailogic.memotattoo.ui.flashcards.CreateDeckScreen(
                                 navController = navController,
+                                draftId = draftId,
                                 userProfileViewModel = userProfileViewModel
                         )
                     }
