@@ -10,14 +10,17 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.layout.ContentScale
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.firebaseailogic.memotattoo.ai.AILogic
 import com.firebaseailogic.memotattoo.data.FirebaseManager
+import com.firebaseailogic.memotattoo.ui.components.FullScreenImageViewer
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -49,6 +52,7 @@ fun CreateDeckScreen(
     var draftState by remember { mutableStateOf(DraftState(draftId = draftId)) }
     var isLoading by remember { mutableStateOf(draftId != null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var fullScreenImageUrl by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(draftId) {
@@ -56,9 +60,12 @@ fun CreateDeckScreen(
             try {
                 val doc = FirebaseManager.firestore.collection("FlashcardDecks").document(draftId).get().await()
                 if (doc.exists()) {
+                    @Suppress("UNCHECKED_CAST")
                     val contentBase = doc.get("contentBase") as? Map<String, Any>
                     val title = contentBase?.get("title") as? String ?: doc.getString("title") ?: ""
                     val topic = doc.getString("topic") ?: ""
+                    
+                    @Suppress("UNCHECKED_CAST")
                     val items = doc.get("items") as? List<Map<String, String>> ?: emptyList()
                     val artDir = doc.getString("artDirection") ?: ""
                     val artRef = doc.getString("artReferenceImage")
@@ -141,6 +148,7 @@ fun CreateDeckScreen(
                                             } else {
                                                 FirebaseManager.firestore.collection("FlashcardDecks").document()
                                             }
+                                            
                                             docRef.set(deckData).await()
                                             draftState = draftState.copy(draftId = docRef.id)
                                             navController.popBackStack()
@@ -221,10 +229,10 @@ fun CreateDeckScreen(
             // Step Content Area
             Box(modifier = Modifier.weight(1f)) {
                 when (draftState.step) {
-                    1 -> Step1Topic(draftState, energyBolts) { draftState = it }
+                    1 -> Step1Topic(draftState) { draftState = it }
                     2 -> Step2Content(draftState) { draftState = it }
-                    3 -> Step3ArtDirection(draftState) { draftState = it }
-                    4 -> Step4Images(draftState, energyBolts, userProfile, { navController.navigate("billing") }) { draftState = it }
+                    3 -> Step3ArtDirection(draftState, onImageClick = { url -> fullScreenImageUrl = url }) { draftState = it }
+                    4 -> Step4Images(draftState, energyBolts, userProfile, { navController.navigate("billing") }, onImageClick = { url -> fullScreenImageUrl = url }) { draftState = it }
                     5 -> {
                         var isPublishing by remember { mutableStateOf(false) }
                         Step5Publish(
@@ -232,6 +240,8 @@ fun CreateDeckScreen(
                                 isPublishing = isPublishing,
                                 onPublish = { isPublic ->
                                     if (isPublishing) return@Step5Publish
+
+
                                     isPublishing = true
                                     coroutineScope.launch {
                                         try {
@@ -302,9 +312,9 @@ fun CreateDeckScreen(
                                     errorMessage = null
                                     coroutineScope.launch {
                                         try {
-                                            val uid =
-                                                    FirebaseManager.auth.currentUser?.uid
-                                                            ?: return@launch
+                                            if (FirebaseManager.auth.currentUser?.uid == null) {
+                                                return@launch
+                                            }
 
                                             if (energyBolts < 1) {
                                                 navController.navigate("billing")
@@ -316,11 +326,11 @@ fun CreateDeckScreen(
                                                     AILogic.generateTopic(draftState.topic, count)
 
                                             // Deduct bolt
-                                            FirebaseManager.auth.currentUser?.uid?.let { uid ->
+                                            FirebaseManager.auth.currentUser?.uid?.let { currentUid ->
                                                 val userRef =
                                                         FirebaseManager.firestore
                                                                 .collection("Users")
-                                                                .document(uid)
+                                                                .document(currentUid)
                                                 if (energyBolts >= 1) {
                                                     userRef.update("energy_bolts", energyBolts - 1)
                                                             .await()
@@ -332,6 +342,7 @@ fun CreateDeckScreen(
                                             val newTitle =
                                                     result["title"] as? String
                                                             ?: "${draftState.topic} Essentials"
+                                            @Suppress("UNCHECKED_CAST")
                                             val itemsList =
                                                     result["items"] as? List<Map<String, String>>
                                                             ?: emptyList()
@@ -378,10 +389,18 @@ fun CreateDeckScreen(
             }
         }
     }
+
+    // Mount Full Screen Viewer if needed
+    fullScreenImageUrl?.let { url ->
+        FullScreenImageViewer(
+            imageUrl = url,
+            onDismiss = { fullScreenImageUrl = null }
+        )
+    }
 }
 
 @Composable
-fun Step1Topic(state: DraftState, energyBolts: Int, onStateChange: (DraftState) -> Unit) {
+fun Step1Topic(state: DraftState, onStateChange: (DraftState) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
                 "What do you want to learn?",
@@ -510,7 +529,7 @@ fun Step2Content(state: DraftState, onStateChange: (DraftState) -> Unit) {
 }
 
 @Composable
-fun Step3ArtDirection(state: DraftState, onStateChange: (DraftState) -> Unit) {
+fun Step3ArtDirection(state: DraftState, onImageClick: (String) -> Unit, onStateChange: (DraftState) -> Unit) {
     val launcher =
             androidx.activity.compose.rememberLauncherForActivityResult(
                     contract =
@@ -544,7 +563,7 @@ fun Step3ArtDirection(state: DraftState, onStateChange: (DraftState) -> Unit) {
             AsyncImage(
                     model = state.globalArtImageUri,
                     contentDescription = "Reference Image",
-                    modifier = Modifier.fillMaxWidth().height(200.dp)
+                    modifier = Modifier.fillMaxWidth().height(200.dp).clickable { onImageClick(state.globalArtImageUri!!) }
             )
         }
 
@@ -566,6 +585,7 @@ fun Step4Images(
     energyBolts: Int, 
     userProfile: com.firebaseailogic.memotattoo.ui.flashcards.UserProfile?, 
     onNavigateToBilling: () -> Unit,
+    onImageClick: (String) -> Unit,
     onStateChange: (DraftState) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -591,6 +611,8 @@ fun Step4Images(
                                         modifier =
                                                 Modifier.padding(top = 8.dp, bottom = 8.dp)
                                                         .size(80.dp)
+                                                        .clickable { onImageClick(concept.imageUrl!!) },
+                                        contentScale = ContentScale.Crop
                                 )
                             } else {
                                 Text("No image", style = MaterialTheme.typography.bodySmall)

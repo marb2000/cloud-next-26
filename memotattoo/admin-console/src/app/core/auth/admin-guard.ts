@@ -2,31 +2,20 @@ import { inject, effect } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { Auth } from './auth';
 
-export const adminGuard: CanActivateFn = (route, state) => {
+export const adminGuard: CanActivateFn = async (route, state) => {
   const auth = inject(Auth);
   const router = inject(Router);
 
-  // If already loaded and we know they aren't an admin, kick them immediately
-  if (!auth.isInitializing() && !auth.isAdmin()) {
-    return router.parseUrl('/login');
+  // Wait if auth is still initializing
+  if (auth.isInitializing()) {
+    await auth.authStateReady;
   }
 
-  // If we are initialized and they are an admin, let them through
-  if (!auth.isInitializing() && auth.isAdmin()) {
+  // Once initialized, check if they are an admin
+  if (auth.isAdmin()) {
     return true;
   }
 
-  // Otherwise, return a promise that resolves when init finishes
-  return new Promise<boolean | import('@angular/router').UrlTree>((resolve) => {
-    const check = effect(() => {
-      if (!auth.isInitializing()) {
-        if (auth.isAdmin()) {
-          resolve(true);
-        } else {
-          resolve(router.parseUrl('/login'));
-        }
-        check.destroy(); // Important: clean up the effect!
-      }
-    });
-  });
+  // Otherwise kick them to login
+  return router.parseUrl('/auth');
 };

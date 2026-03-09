@@ -3,6 +3,7 @@ package com.firebaseailogic.memotattoo.ui.flashcards
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,17 +17,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.firebaseailogic.memotattoo.ai.AILogic
 import com.firebaseailogic.memotattoo.data.FirebaseManager
+import com.firebaseailogic.memotattoo.ui.components.FullScreenImageViewer
 import com.google.firebase.ai.Chat
 import com.google.firebase.ai.type.FunctionResponsePart
 import com.google.firebase.ai.type.content
 import com.google.firebase.firestore.FieldValue
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.json.JsonObject
@@ -47,6 +53,12 @@ fun GameSessionScreen(
         var currentConcept by remember { mutableStateOf<Map<String, Any>?>(null) }
         var remainingConcepts = remember { mutableStateListOf<Map<String, Any>>() }
         var isGameOver by remember { mutableStateOf(false) }
+        // SRS / Progress Stats
+        var consecutiveCorrectGuesses by remember { mutableIntStateOf(0) }
+        var pointsEarned by remember { mutableIntStateOf(0) }
+
+        // Full Screen Image Viewer State
+        var fullScreenImageUrl by remember { mutableStateOf<String?>(null) }
         var termsGuessed by remember { mutableIntStateOf(0) }
         var deckOwnerId by remember { mutableStateOf<String?>(null) }
         var hasPaidForSession by remember { mutableStateOf(false) }
@@ -94,7 +106,7 @@ fun GameSessionScreen(
                                         val expiredTerm =
                                                 currentConcept?.get("term")
                                                         ?: currentConcept?.get("original") ?: ""
-                                        
+
                                         timeUpAnimTrigger = expiredTerm.toString()
                                         kotlinx.coroutines.delay(3000L)
                                         timeUpAnimTrigger = null
@@ -390,11 +402,11 @@ fun GameSessionScreen(
                                                 (currentConcept?.get("imageArt") as? String)
                                                         ?: (currentConcept?.get("image") as? String)
 
-                                        if (!imageUrl.isNullOrBlank()) {
+                                        if (imageUrl != null) {
                                                 AsyncImage(
                                                         model = imageUrl,
                                                         contentDescription = "Concept Image",
-                                                        modifier = Modifier.fillMaxSize(),
+                                                        modifier = Modifier.fillMaxSize().clickable { fullScreenImageUrl = imageUrl },
                                                         contentScale = ContentScale.Crop
                                                 )
                                         } else {

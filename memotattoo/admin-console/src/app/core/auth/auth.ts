@@ -13,6 +13,11 @@ export class Auth {
   isAdmin = signal<boolean>(false);
   isInitializing = signal<boolean>(true);
 
+  private resolveAuthState!: () => void;
+  public authStateReady = new Promise<void>(resolve => {
+    this.resolveAuthState = resolve;
+  });
+
   constructor(private router: Router) {
     onAuthStateChanged(auth, async (user) => {
       this.currentUser.set(user);
@@ -36,6 +41,7 @@ export class Auth {
         this.isAdmin.set(false);
       }
       this.isInitializing.set(false);
+      this.resolveAuthState();
     });
   }
 
@@ -46,6 +52,6 @@ export class Auth {
 
   async logout() {
     await signOut(auth);
-    this.router.navigate(['/login']);
+    this.router.navigate(['/auth']);
   }
 }
