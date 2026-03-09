@@ -224,7 +224,7 @@ fun CreateDeckScreen(
                     1 -> Step1Topic(draftState, energyBolts) { draftState = it }
                     2 -> Step2Content(draftState) { draftState = it }
                     3 -> Step3ArtDirection(draftState) { draftState = it }
-                    4 -> Step4Images(draftState, energyBolts) { draftState = it }
+                    4 -> Step4Images(draftState, energyBolts, userProfile, { navController.navigate("billing") }) { draftState = it }
                     5 -> {
                         var isPublishing by remember { mutableStateOf(false) }
                         Step5Publish(
@@ -561,7 +561,13 @@ fun Step3ArtDirection(state: DraftState, onStateChange: (DraftState) -> Unit) {
 }
 
 @Composable
-fun Step4Images(state: DraftState, energyBolts: Int, onStateChange: (DraftState) -> Unit) {
+fun Step4Images(
+    state: DraftState, 
+    energyBolts: Int, 
+    userProfile: com.firebaseailogic.memotattoo.ui.flashcards.UserProfile?, 
+    onNavigateToBilling: () -> Unit,
+    onStateChange: (DraftState) -> Unit
+) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
                 "Flashcard Images",
@@ -593,6 +599,7 @@ fun Step4Images(state: DraftState, energyBolts: Int, onStateChange: (DraftState)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             var isGeneratingImage by remember { mutableStateOf(false) }
                             val coroutineScope = rememberCoroutineScope()
+                            val context = androidx.compose.ui.platform.LocalContext.current
 
                             OutlinedButton(onClick = { /* TODO: Upload */}) { Text("Upload") }
 
@@ -602,9 +609,25 @@ fun Step4Images(state: DraftState, energyBolts: Int, onStateChange: (DraftState)
                                         isGeneratingImage = true
                                         coroutineScope.launch {
                                             try {
+                                                val isPro = userProfile?.isPro == true
+                                                val generated = userProfile?.imagesGeneratedThisMonth ?: 0
+
+                                                if (!isPro) {
+                                                    onNavigateToBilling()
+                                                    return@launch
+                                                }
+
+                                                if (isPro && generated >= 100) {
+                                                    android.widget.Toast.makeText(
+                                                        context,
+                                                        "You have reached your 100 AI Images/mo limit.",
+                                                        android.widget.Toast.LENGTH_LONG
+                                                    ).show()
+                                                    return@launch
+                                                }
+
                                                 if (energyBolts < 1) {
-                                                    // Normally route to billing, but here just show
-                                                    // toast
+                                                    onNavigateToBilling()
                                                     return@launch
                                                 }
 
@@ -640,9 +663,11 @@ fun Step4Images(state: DraftState, energyBolts: Int, onStateChange: (DraftState)
                                                                     .document(uid)
                                                     if (energyBolts >= 1) {
                                                         userRef.update(
-                                                                        "energy_bolts",
-                                                                        energyBolts - 1
-                                                                )
+                                                            mapOf(
+                                                                "energy_bolts" to (energyBolts - 1),
+                                                                "imagesGeneratedThisMonth" to com.google.firebase.firestore.FieldValue.increment(1)
+                                                            )
+                                                        )
                                                                 .await()
                                                     }
                                                 }
