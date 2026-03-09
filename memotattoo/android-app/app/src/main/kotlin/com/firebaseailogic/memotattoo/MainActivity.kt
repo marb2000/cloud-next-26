@@ -23,7 +23,9 @@ class MainActivity : ComponentActivity() {
                         com.firebaseailogic.memotattoo.ui.flashcards.UserProfileViewModel =
                         androidx.lifecycle.viewmodel.compose.viewModel()
 
-                NavHost(navController = navController, startDestination = "login") {
+                val startDest = if (com.firebaseailogic.memotattoo.data.FirebaseManager.auth.currentUser != null) "daily_mission" else "login"
+
+                NavHost(navController = navController, startDestination = startDest) {
                     composable("login") {
                         com.firebaseailogic.memotattoo.ui.onboarding.LoginScreen(
                                 navController = navController
@@ -53,6 +55,12 @@ class MainActivity : ComponentActivity() {
                     }
                     composable("billing") {
                         MockBillingScreen(
+                                navController = navController,
+                                userProfileViewModel = userProfileViewModel
+                        )
+                    }
+                    composable("settings") {
+                        com.firebaseailogic.memotattoo.ui.flashcards.SettingsScreen(
                                 navController = navController,
                                 userProfileViewModel = userProfileViewModel
                         )
