@@ -612,23 +612,24 @@ fun Step4Images(
                                                 val isPro = userProfile?.isPro == true
                                                 val generated = userProfile?.imagesGeneratedThisMonth ?: 0
 
-                                                if (!isPro) {
-                                                    onNavigateToBilling()
-                                                    return@launch
-                                                }
-
-                                                if (isPro && generated >= 100) {
-                                                    android.widget.Toast.makeText(
-                                                        context,
-                                                        "You have reached your 100 AI Images/mo limit.",
-                                                        android.widget.Toast.LENGTH_LONG
-                                                    ).show()
-                                                    return@launch
-                                                }
-
-                                                if (energyBolts < 1) {
-                                                    onNavigateToBilling()
-                                                    return@launch
+                                                if (isPro) {
+                                                    if (generated >= 100) {
+                                                        android.widget.Toast.makeText(
+                                                            context,
+                                                            "You have reached your 100 AI Images/mo limit.",
+                                                            android.widget.Toast.LENGTH_LONG
+                                                        ).show()
+                                                        return@launch
+                                                    }
+                                                    if (energyBolts < 1) {
+                                                        onNavigateToBilling()
+                                                        return@launch
+                                                    }
+                                                } else {
+                                                    if (energyBolts < 3) {
+                                                        onNavigateToBilling()
+                                                        return@launch
+                                                    }
                                                 }
 
                                                 var url =
@@ -661,10 +662,12 @@ fun Step4Images(
                                                             FirebaseManager.firestore
                                                                     .collection("Users")
                                                                     .document(uid)
-                                                    if (energyBolts >= 1) {
+                                                                    
+                                                    val boltsToDeduct = if (isPro) 1 else 3
+                                                    if (energyBolts >= boltsToDeduct) {
                                                         userRef.update(
                                                             mapOf(
-                                                                "energy_bolts" to (energyBolts - 1),
+                                                                "energy_bolts" to (energyBolts - boltsToDeduct),
                                                                 "imagesGeneratedThisMonth" to com.google.firebase.firestore.FieldValue.increment(1)
                                                             )
                                                         )

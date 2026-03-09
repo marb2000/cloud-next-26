@@ -63,8 +63,8 @@ fun MockBillingScreen(
                     Text("Free", style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("• 3 Bolts max cap", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+                    Text("• AI Gen: 3 Bolts/ea", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                     Text("• Slow recharge", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
-                    Text("• No AI Generators", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                 }
             }
 
@@ -96,39 +96,84 @@ fun MockBillingScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        if (isPro) {
-            Button(
-                onClick = {
-                    FirebaseManager.auth.currentUser?.uid?.let { uid ->
-                        FirebaseManager.firestore
-                            .collection("Users")
-                            .document(uid)
-                            .update("isPro", false)
+        var showSubscribeDialog by remember { mutableStateOf(false) }
+
+        if (showSubscribeDialog) {
+            AlertDialog(
+                onDismissRequest = { showSubscribeDialog = false },
+                title = { Text("Confirm Subscription") },
+                text = { Text("You will be charged $4.99 immediately, and this subscription will automatically renew every 30 days until canceled. Do you wish to proceed?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showSubscribeDialog = false
+                        FirebaseManager.auth.currentUser?.uid?.let { uid ->
+                            val currentPeriodEnd = System.currentTimeMillis() + (30L * 24 * 60 * 60 * 1000)
+                            FirebaseManager.firestore
+                                .collection("Users")
+                                .document(uid)
+                                .update(
+                                    mapOf(
+                                        "isPro" to true,
+                                        "energy_bolts" to FieldValue.increment(50),
+                                        "cancelAtPeriodEnd" to false,
+                                        "currentPeriodEnd" to currentPeriodEnd
+                                    )
+                                )
+                        }
+                        navController.popBackStack()
+                    }) {
+                        Text("Subscribe")
                     }
-                    navController.popBackStack()
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                shape = RoundedCornerShape(12.dp)
-            ) { Text("Cancel Subscription") }
+                dismissButton = {
+                    TextButton(onClick = { showSubscribeDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        if (isPro) {
+            if (userProfile?.cancelAtPeriodEnd == true) {
+                Button(
+                    onClick = {
+                        FirebaseManager.auth.currentUser?.uid?.let { uid ->
+                            FirebaseManager.firestore
+                                .collection("Users")
+                                .document(uid)
+                                .update("cancelAtPeriodEnd", false)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text("Resume Subscription") }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Subscription active until end of billing cycle.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center
+                )
+            } else {
+                Button(
+                    onClick = {
+                        FirebaseManager.auth.currentUser?.uid?.let { uid ->
+                            FirebaseManager.firestore
+                                .collection("Users")
+                                .document(uid)
+                                .update("cancelAtPeriodEnd", true)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text("Cancel Subscription") }
+            }
         } else {
             Button(
-                onClick = {
-                    FirebaseManager.auth.currentUser?.uid?.let { uid ->
-                        FirebaseManager.firestore
-                            .collection("Users")
-                            .document(uid)
-                            .update(
-                                mapOf(
-                                    "isPro" to true,
-                                    "energy_bolts" to FieldValue.increment(50)
-                                )
-                            )
-                    }
-                    navController.popBackStack()
-                },
+                onClick = { showSubscribeDialog = true },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),

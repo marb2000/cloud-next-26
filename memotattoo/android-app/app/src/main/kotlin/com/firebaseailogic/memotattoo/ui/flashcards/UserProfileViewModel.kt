@@ -14,7 +14,9 @@ data class UserProfile(
         val energyBolts: Int,
         val isBanned: Boolean,
         val isPro: Boolean,
-        val imagesGeneratedThisMonth: Int
+        val imagesGeneratedThisMonth: Int,
+        val cancelAtPeriodEnd: Boolean = false,
+        val currentPeriodEnd: Long? = null
 )
 
 class UserProfileViewModel : ViewModel() {
@@ -55,8 +57,25 @@ class UserProfileViewModel : ViewModel() {
                                                         ?: 0,
                                         isBanned = snapshot.getBoolean("isBanned") ?: false,
                                         isPro = snapshot.getBoolean("isPro") ?: false,
-                                        imagesGeneratedThisMonth = snapshot.getLong("imagesGeneratedThisMonth")?.toInt() ?: 0
+                                        imagesGeneratedThisMonth = snapshot.getLong("imagesGeneratedThisMonth")?.toInt() ?: 0,
+                                        cancelAtPeriodEnd = snapshot.getBoolean("cancelAtPeriodEnd") ?: false,
+                                        currentPeriodEnd = snapshot.getLong("currentPeriodEnd")
                                 )
+
+                        // Handle automatic demotion if subscription period ended after cancellation
+                        val now = System.currentTimeMillis()
+                        if (profile.isPro && profile.cancelAtPeriodEnd && profile.currentPeriodEnd != null && now > profile.currentPeriodEnd) {
+                                // Downgrade to Free
+                                FirebaseManager.firestore.collection("Users").document(uid).update(
+                                        mapOf(
+                                                "isPro" to false,
+                                                "cancelAtPeriodEnd" to false,
+                                                "currentPeriodEnd" to null
+                                        )
+                                )
+                                // It will trigger snapshot listener again so we can skip this update
+                                return@addSnapshotListener
+                        }
 
                         if (profile.isBanned) {
                             FirebaseManager.auth.signOut()
