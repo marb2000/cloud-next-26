@@ -16,19 +16,18 @@ import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
         <p class="text-4xl font-black text-white">{{ usersCount() }}</p>
         <p class="text-blue-400 text-sm mt-3 font-semibold">{{ proUsersCount() }} Pro Subscribers</p>
       </div>
-      
-      <!-- Revenue -->
+      <!-- AI Images -->
       <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-lg relative overflow-hidden">
-        <p class="text-slate-400 font-semibold mb-1">Estimated MRR</p>
-        <p class="text-4xl font-black text-emerald-400">$ {{ estRevenue() | number:'1.2-2' }}</p>
-        <p class="text-slate-400 text-sm mt-3 font-semibold">Based on $4.99/mo</p>
+        <p class="text-slate-400 font-semibold mb-1">Images Generated (30 Days)</p>
+        <p class="text-4xl font-black text-emerald-400">{{ totalImagesGenerated() }}</p>
+        <p class="text-slate-400 text-sm mt-3 font-semibold">Across all Users</p>
       </div>
 
-      <!-- AI Costs -->
+      <!-- AI Tokens -->
       <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-lg relative overflow-hidden">
-        <p class="text-slate-400 font-semibold mb-1">Vertex AI Cost (Images)</p>
-        <p class="text-4xl font-black text-pink-400">$ {{ apiCost() | number:'1.2-2' }}</p>
-        <p class="text-slate-400 text-sm mt-3 font-semibold">{{ totalImagesGenerated() }} Total Images</p>
+        <p class="text-slate-400 font-semibold mb-1">Tokens Consumed (30 Days)</p>
+        <p class="text-4xl font-black text-pink-400">{{ totalTokensConsumed() | number }}</p>
+        <p class="text-slate-400 text-sm mt-3 font-semibold">Gemini Flash Models</p>
       </div>
       
       <!-- Generated Content -->
@@ -56,10 +55,9 @@ import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 export class Dashboard implements OnInit {
   usersCount = signal<number | string>('...');
   proUsersCount = signal<number>(0);
-  estRevenue = signal<number>(0);
   
   totalImagesGenerated = signal<number>(0);
-  apiCost = signal<number>(0);
+  totalTokensConsumed = signal<number>(0);
   
   decksCount = signal<number | string>('...');
   topDecks = signal<any[]>([]);
@@ -72,6 +70,7 @@ export class Dashboard implements OnInit {
       
       let proCount = 0;
       let imgCount = 0;
+      let tokenCount = 0;
       
       usersSnap.forEach(doc => {
         const data = doc.data();
@@ -79,13 +78,14 @@ export class Dashboard implements OnInit {
         if (data['imagesGeneratedThisMonth']) {
            imgCount += (typeof data['imagesGeneratedThisMonth'] === 'number' ? data['imagesGeneratedThisMonth'] : 0);
         }
+        if (data['tokensConsumedThisMonth']) {
+           tokenCount += (typeof data['tokensConsumedThisMonth'] === 'number' ? data['tokensConsumedThisMonth'] : 0);
+        }
       });
       
       this.proUsersCount.set(proCount);
-      this.estRevenue.set(proCount * 4.99);
-      
       this.totalImagesGenerated.set(imgCount);
-      this.apiCost.set(imgCount * 0.03); // $0.03 per image logic
+      this.totalTokensConsumed.set(tokenCount);
       
     } catch (e) { console.error("Could not fetch Users data", e); }
 
