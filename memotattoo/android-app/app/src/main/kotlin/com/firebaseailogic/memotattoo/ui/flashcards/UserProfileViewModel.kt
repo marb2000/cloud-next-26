@@ -12,7 +12,8 @@ data class UserProfile(
         val uid: String,
         val email: String,
         val energyBolts: Int,
-        val isBanned: Boolean
+        val isBanned: Boolean,
+        val isPro: Boolean
 )
 
 class UserProfileViewModel : ViewModel() {
@@ -51,7 +52,8 @@ class UserProfileViewModel : ViewModel() {
                                         email = snapshot.getString("email") ?: "",
                                         energyBolts = snapshot.getLong("energy_bolts")?.toInt()
                                                         ?: 0,
-                                        isBanned = snapshot.getBoolean("isBanned") ?: false
+                                        isBanned = snapshot.getBoolean("isBanned") ?: false,
+                                        isPro = snapshot.getBoolean("isPro") ?: false
                                 )
 
                         if (profile.isBanned) {
