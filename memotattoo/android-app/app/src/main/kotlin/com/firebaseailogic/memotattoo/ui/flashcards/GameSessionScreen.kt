@@ -27,7 +27,10 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.firebaseailogic.memotattoo.ai.AILogic
 import com.firebaseailogic.memotattoo.data.FirebaseManager
+import com.firebaseailogic.memotattoo.ui.components.AutoResizeText
 import com.firebaseailogic.memotattoo.ui.components.FullScreenImageViewer
+import com.firebaseailogic.memotattoo.ui.theme.MemoGradientBrush
+import com.firebaseailogic.memotattoo.ui.theme.Shapes
 import com.google.firebase.ai.Chat
 import com.google.firebase.ai.type.FunctionResponsePart
 import com.google.firebase.ai.type.content
@@ -51,11 +54,10 @@ fun GameSessionScreen(
         var isLoading by remember { mutableStateOf(true) }
         var score by remember { mutableIntStateOf(0) }
         var currentConcept by remember { mutableStateOf<Map<String, Any>?>(null) }
+        var deckTitle by remember { mutableStateOf("Loading...") }
         var remainingConcepts = remember { mutableStateListOf<Map<String, Any>>() }
         var isGameOver by remember { mutableStateOf(false) }
         // SRS / Progress Stats
-        var consecutiveCorrectGuesses by remember { mutableIntStateOf(0) }
-        var pointsEarned by remember { mutableIntStateOf(0) }
 
         // Full Screen Image Viewer State
         var fullScreenImageUrl by remember { mutableStateOf<String?>(null) }
@@ -178,17 +180,22 @@ fun GameSessionScreen(
                                                 }
 
                                                 val newTerm =
-                                                        currentConcept?.get("term")
-                                                                ?: currentConcept?.get("original") ?: ""
+                                                        currentConcept?.get("term")?.toString()
+                                                                ?: currentConcept?.get("original")?.toString() ?: ""
                                                 val newDef =
-                                                        currentConcept?.get("definition")
-                                                                ?: currentConcept?.get("translation") ?: ""
+                                                        currentConcept?.get("definition")?.toString()
+                                                                ?: currentConcept?.get("translation")?.toString() ?: ""
+                                                val imageSource = (currentConcept?.get("imageArt") as? String) ?: (currentConcept?.get("image") as? String) ?: ""
                                                 isSubmitting = true
                                                 try {
+                                                        val advancePrompt = if (imageSource.isNotBlank()) {
+                                                                "The timer ran out. We advanced to the next concept. New target term is '$newTerm' and its definition is '$newDef'. Start this round now!"
+                                                        } else {
+                                                                "The timer ran out. We advanced to the next concept. New target term is '$newTerm' and its definition is '$newDef'. There is NO image. Start this round by giving the user the definition: '$newDef', and asking them what word fits it."
+                                                        }
+                                                        
                                                         val advanceResponse =
-                                                                chat.value?.sendMessage(
-                                                                        "The timer ran out. We advanced to the next concept. New target term is '$newTerm' and its definition is '$newDef'. Start this round now!"
-                                                                )
+                                                                chat.value?.sendMessage(advancePrompt)
                                                         messages.add(
                                                                 ChatMessage(
                                                                         false,
@@ -224,9 +231,18 @@ fun GameSessionScreen(
                         val contentBase = docSnap.get("contentBase") as? Map<String, Any>
                         @Suppress("UNCHECKED_CAST")
                         val loadedItems =
-                                contentBase?.get("items") as? List<Map<String, Any>> ?: emptyList()
+                                (docSnap.get("items") as? List<Map<String, Any>>)
+                                        ?: (contentBase?.get("items") as? List<Map<String, Any>>)
+                                        ?: emptyList()
                         deckOwnerId = docSnap.getString("owner_id")
-                        val title = docSnap.getString("title") ?: "Unknown Topic"
+                        val rootTitle = docSnap.getString("title")
+                        val contentTitle = contentBase?.get("title") as? String
+                        val docTopic = docSnap.getString("topic")
+                        
+                        deckTitle = docTopic?.takeIf { it.isNotBlank() } 
+                            ?: rootTitle?.takeIf { it.isNotBlank() } 
+                            ?: contentTitle?.takeIf { it.isNotBlank() } 
+                            ?: "Unknown Topic"
 
                         remainingConcepts.addAll(loadedItems.shuffled())
                         sessionTotalItems = loadedItems.size
@@ -235,24 +251,30 @@ fun GameSessionScreen(
                                 currentConcept = remainingConcepts.removeAt(0)
                         }
 
-                        chat.value = AILogic.startGameSession(deckTitle = title)
+                        chat.value = AILogic.startGameSession(deckTitle)
 
                         // Seed the chat with the first concept silently as a system prompt, so
                         // Gemini starts
                         // the game
                         val term =
-                                currentConcept?.get("term") ?: currentConcept?.get("original") ?: ""
+                                currentConcept?.get("term")?.toString() ?: currentConcept?.get("original")?.toString() ?: ""
                         val definition =
-                                currentConcept?.get("definition")
-                                        ?: currentConcept?.get("translation") ?: ""
+                                currentConcept?.get("definition")?.toString()
+                                        ?: currentConcept?.get("translation")?.toString() ?: ""
 
                         val seedText =
                                 "Start the game. The first target term is '$term' and its definition is '$definition'. Start the round by asking what word you are thinking of. Keep it brief."
 
+                        val seedTextNoImage =
+                                "Start the game. We are playing a game guessing concepts from '$deckTitle'. The first target term is '$term' and its definition is '$definition'. There is NO image. You must start the round by giving the user the definition: '$definition', and asking them what word fits it. Keep it brief."
+
+                        val imageSource = (currentConcept?.get("imageArt") as? String) ?: (currentConcept?.get("image") as? String) ?: ""
+                        val finalSeedText = if (imageSource.isNotBlank()) seedText else seedTextNoImage
+
                         coroutineScope.launch {
                                 isSubmitting = true
                                 try {
-                                        val response = chat.value?.sendMessage(seedText)
+                                        val response = chat.value?.sendMessage(finalSeedText)
                                         messages.add(
                                                 ChatMessage(
                                                         isUser = false,
@@ -282,8 +304,16 @@ fun GameSessionScreen(
         }
 
         if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                Scaffold { innerPadding ->
+                        Box(
+                                modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.background)
+                                        .padding(innerPadding),
+                                contentAlignment = Alignment.Center
+                        ) {
+                                CircularProgressIndicator()
+                        }
                 }
                 return
         }
@@ -323,22 +353,32 @@ fun GameSessionScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
                                         if (isGameOver) "Game Over" else "Deck Complete!",
-                                        style = MaterialTheme.typography.displaySmall
+                                        style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.ExtraBold),
+                                        color = MaterialTheme.colorScheme.primary
                                 )
-                                Text(
-                                        "Final Score: $score",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        modifier = Modifier.padding(top = 8.dp)
-                                )
+                                Surface(
+                                    shape = Shapes.large,
+                                    modifier = Modifier.padding(top = 16.dp).clip(Shapes.large).background(MemoGradientBrush)
+                                ) {
+                                    Text(
+                                            "Final Score: $score",
+                                            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                                            color = Color.White,
+                                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                                    )
+                                }
                                 Text(
                                         "Terms Guessed: $termsGuessed",
                                         style = MaterialTheme.typography.titleMedium,
-                                        modifier = Modifier.padding(top = 4.dp),
+                                        modifier = Modifier.padding(top = 16.dp),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.height(32.dp))
-                                Button(onClick = { navController.popBackStack() }) {
-                                        Text("Return to Hub")
+                                Button(
+                                    onClick = { navController.popBackStack() },
+                                    shape = Shapes.medium
+                                ) {
+                                        Text("Return to Hub", modifier = Modifier.padding(8.dp))
                                 }
                         }
                 }
@@ -353,7 +393,22 @@ fun GameSessionScreen(
                 ) {
                         // Top Bar
                         TopAppBar(
-                                title = { Text("Score: $score") },
+                                title = {
+                                        Column {
+                                                Text(
+                                                        text = deckTitle,
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                        "Score: $score",
+                                                        style = MaterialTheme.typography.titleLarge,
+                                                        fontWeight = FontWeight.Bold
+                                                )
+                                        }
+                                },
                                 navigationIcon = {
                                         IconButton(onClick = { isGameOver = true }) {
                                                 Icon(
@@ -383,52 +438,28 @@ fun GameSessionScreen(
                         )
 
                         // Visual Context
-                        Box(
-                                modifier =
-                                        Modifier.fillMaxWidth()
-                                                .padding(16.dp)
-                                                .height(200.dp)
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .background(
-                                                        MaterialTheme.colorScheme.surfaceVariant
-                                                ),
-                                contentAlignment = Alignment.Center
-                        ) {
-                                if (currentConcept != null) {
-                                        // Read from either "imageArt" (Web App schema) or "image"
-                                        // (Android
-                                        // App schema)
-                                        val imageUrl =
-                                                (currentConcept?.get("imageArt") as? String)
-                                                        ?: (currentConcept?.get("image") as? String)
+                        val imageUrl =
+                                (currentConcept?.get("imageArt") as? String)
+                                        ?: (currentConcept?.get("image") as? String)
 
-                                        if (imageUrl != null) {
-                                                AsyncImage(
-                                                        model = imageUrl,
-                                                        contentDescription = "Concept Image",
-                                                        modifier = Modifier.fillMaxSize().clickable { fullScreenImageUrl = imageUrl },
-                                                        contentScale = ContentScale.Crop
-                                                )
-                                        } else {
-                                                Column(
-                                                        horizontalAlignment =
-                                                                Alignment.CenterHorizontally
-                                                ) {
-                                                        Text(
-                                                                "🖼️",
-                                                                style =
-                                                                        MaterialTheme.typography
-                                                                                .displayMedium
-                                                        )
-                                                        Spacer(modifier = Modifier.height(8.dp))
-                                                        Text(
-                                                                "Concept Image Pending",
-                                                                style =
-                                                                        MaterialTheme.typography
-                                                                                .titleMedium
-                                                        )
-                                                }
-                                        }
+                        if (!imageUrl.isNullOrBlank()) {
+                                Box(
+                                        modifier =
+                                                Modifier.fillMaxWidth()
+                                                        .padding(16.dp)
+                                                        .height(200.dp)
+                                                        .clip(Shapes.large)
+                                                        .background(
+                                                                MaterialTheme.colorScheme.surfaceVariant
+                                                        ),
+                                        contentAlignment = Alignment.Center
+                                ) {
+                                        AsyncImage(
+                                                model = imageUrl,
+                                                contentDescription = "Concept Image",
+                                                modifier = Modifier.fillMaxSize().clickable { fullScreenImageUrl = imageUrl },
+                                                contentScale = ContentScale.Crop
+                                        )
                                 }
                         }
 
@@ -439,7 +470,7 @@ fun GameSessionScreen(
                                         Modifier.weight(1f)
                                                 .fillMaxWidth()
                                                 .padding(horizontal = 16.dp),
-                                contentPadding = PaddingValues(bottom = 16.dp),
+                                contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
                                 reverseLayout = false
                         ) {
                                 items(messages) { message ->
@@ -486,11 +517,19 @@ fun GameSessionScreen(
                                                 isSubmitting = true
 
                                                 coroutineScope.launch {
+                                                        var response: com.google.firebase.ai.type.GenerateContentResponse? = null
+                                                        
+                                                        for (attempt in 1..3) {
+                                                                try {
+                                                                        response = chat.value?.sendMessage(userMsg)
+                                                                        break
+                                                                } catch (e: Exception) {
+                                                                        if (attempt == 3) throw e
+                                                                        kotlinx.coroutines.delay(1000L * attempt)
+                                                                }
+                                                        }
+
                                                         try {
-                                                                val response =
-                                                                        chat.value?.sendMessage(
-                                                                                userMsg
-                                                                        )
 
                                                                 // Check for Function Calls
                                                                 if (response != null &&
@@ -670,6 +709,9 @@ fun GameSessionScreen(
                                                                                                                         }
                                                                                                                 }
 
+                                                                                                                val nextImg = currentConcept?.get("imageArt") ?: currentConcept?.get("image")
+                                                                                                                val hasImg = if (nextImg != null && nextImg.toString().isNotBlank()) "true" else "false"
+                                                                                                                
                                                                                                                 FunctionResponsePart(
                                                                                                                         "next_concept",
                                                                                                                         JsonObject(
@@ -701,6 +743,10 @@ fun GameSessionScreen(
                                                                                                                                                                                         "translation"
                                                                                                                                                                                 ))
                                                                                                                                                                 .toString()
+                                                                                                                                                ),
+                                                                                                                                        "imageSource" to
+                                                                                                                                                JsonPrimitive(
+                                                                                                                                                        hasImg
                                                                                                                                                 )
                                                                                                                                 )
                                                                                                                         )
@@ -750,14 +796,15 @@ fun GameSessionScreen(
                                                                                                                 }
                                                                                                 }
                                                                                         )
-                                                                        messages.add(
-                                                                                ChatMessage(
-                                                                                        false,
-                                                                                        finalResponse
-                                                                                                ?.text
-                                                                                                ?: ""
+                                                                        val responseText = finalResponse?.text
+                                                                        if (!responseText.isNullOrBlank()) {
+                                                                                messages.add(
+                                                                                        ChatMessage(
+                                                                                                false,
+                                                                                                responseText
+                                                                                        )
                                                                                 )
-                                                                        )
+                                                                        }
                                                                         if (hasNextConcept &&
                                                                                         currentConcept !=
                                                                                                 null
@@ -780,10 +827,13 @@ fun GameSessionScreen(
                                                                 }
                                                         } catch (e: Exception) {
                                                                 e.printStackTrace()
+                                                                inputText = userMsg
+                                                                messages.removeLastOrNull() // Remove optimistic user message
+                                                                // If we really need to show an error bubble:
                                                                 messages.add(
                                                                         ChatMessage(
                                                                                 false,
-                                                                                "System Error: ${e.message}"
+                                                                                "Connection unstable. Please try sending that again!"
                                                                         )
                                                                 )
                                                         } finally {
@@ -890,28 +940,21 @@ fun ChatBubble(message: ChatMessage) {
                 Box(
                         modifier =
                                 Modifier.widthIn(max = 280.dp)
-                                        .clip(
-                                                RoundedCornerShape(
-                                                        topStart = 16.dp,
-                                                        topEnd = 16.dp,
-                                                        bottomStart =
-                                                                if (message.isUser) 16.dp else 4.dp,
-                                                        bottomEnd =
-                                                                if (message.isUser) 4.dp else 16.dp
-                                                )
-                                        )
-                                        .background(
-                                                if (message.isUser)
-                                                        MaterialTheme.colorScheme.primaryContainer
-                                                else MaterialTheme.colorScheme.surfaceVariant
-                                        )
-                                        .padding(12.dp)
+                                        .clip(Shapes.medium)
+                                        .let {
+                                            if (message.isUser) {
+                                                it.background(MemoGradientBrush)
+                                            } else {
+                                                it.background(MaterialTheme.colorScheme.surfaceVariant)
+                                            }
+                                        }
+                                        .padding(14.dp)
                 ) {
                         Text(
                                 text = message.text,
                                 color =
                                         if (message.isUser)
-                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                                Color.White
                                         else MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodyLarge
                         )

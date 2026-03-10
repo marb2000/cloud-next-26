@@ -4,26 +4,24 @@ import { collection, doc, query, updateDoc, where, onSnapshot } from 'firebase/f
 import { firestore } from '../../core/firebase/firebase';
 import { ConfirmDialogComponent, ConfirmActionParams } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { ActivityLogService } from '../../core/services/activity-log.service';
+import { ResizeText } from '../../shared/directives/resize-text';
 
 export interface PendingDeck {
   id: string;
   title: string;
   status: string;
   isPublic: boolean;
-  contentBase: {
-    title: string;
-    items: {
-      term: string;
-      definition: string;
-      imageArt: string;
-    }[];
-  };
+  items: {
+    original: string;
+    translation: string;
+    image: string;
+  }[];
 }
 
 @Component({
   selector: 'app-deck-moderation',
   standalone: true,
-  imports: [CommonModule, ConfirmDialogComponent],
+  imports: [CommonModule, ConfirmDialogComponent, ResizeText],
   templateUrl: './deck-moderation.html'
 })
 export class DeckModeration {
@@ -32,6 +30,7 @@ export class DeckModeration {
   decks = signal<PendingDeck[]>([]);
   isLoading = signal(true);
   pendingAction = signal<ConfirmActionParams | null>(null);
+  zoomedItem = signal<any>(null);
 
   constructor() {
     this.fetchPendingDecks();
@@ -48,11 +47,19 @@ export class DeckModeration {
     });
   }
 
+  openZoom(item: any) {
+    this.zoomedItem.set(item);
+  }
+
+  closeZoom() {
+    this.zoomedItem.set(null);
+  }
+
   promptApprove(deck: PendingDeck) {
     this.pendingAction.set({
       id: deck.id,
       title: 'Approve Public Deck',
-      message: `Are you sure you want to approve "${deck.contentBase.title}"? This makes it visible to all users and rewards the creator with 1 Energy Bolt per play.`,
+      message: `Are you sure you want to approve "${deck.title}"? This makes it visible to all users and rewards the creator with 1 Energy Bolt per play.`,
       confirmText: 'Approve',
       intent: 'info'
     });
@@ -62,7 +69,7 @@ export class DeckModeration {
     this.pendingAction.set({
       id: deck.id,
       title: 'Reject Deck',
-      message: `Are you sure you want to reject "${deck.contentBase.title}"? This will return it to the creator as a private draft.`,
+      message: `Are you sure you want to reject "${deck.title}"? This will return it to the creator as a private draft.`,
       confirmText: 'Reject',
       intent: 'danger'
     });

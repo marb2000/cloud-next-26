@@ -38,7 +38,8 @@ data class DraftState(
 data class ConceptDraft(
         var term: String = "",
         var definition: String = "",
-        var imageUrl: String? = null
+        var imageUrl: String? = null,
+        var isGeneratingImage: Boolean = false
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,15 +67,19 @@ fun CreateDeckScreen(
                     val topic = doc.getString("topic") ?: ""
                     
                     @Suppress("UNCHECKED_CAST")
-                    val items = doc.get("items") as? List<Map<String, String>> ?: emptyList()
+                    val rootItems = doc.get("items") as? List<Map<String, Any>> ?: emptyList()
+                    @Suppress("UNCHECKED_CAST")
+                    val baseItems = contentBase?.get("items") as? List<Map<String, Any>> ?: emptyList()
+                    val items = if (baseItems.isNotEmpty()) baseItems else rootItems
+
                     val artDir = doc.getString("artDirection") ?: ""
                     val artRef = doc.getString("artReferenceImage")
                     
                     val parsedConcepts = items.map { 
                         ConceptDraft(
-                            term = it["original"] ?: "",
-                            definition = it["translation"] ?: "",
-                            imageUrl = it["image"]?.takeIf { img -> img.isNotBlank() }
+                            term = it["term"]?.toString() ?: it["original"]?.toString() ?: "",
+                            definition = it["definition"]?.toString() ?: it["translation"]?.toString() ?: "",
+                            imageUrl = (it["imageArt"]?.toString() ?: it["image"]?.toString())?.takeIf { img -> img.isNotBlank() }
                         ) 
                     }
                     
@@ -123,18 +128,22 @@ fun CreateDeckScreen(
                                             val uid = FirebaseManager.auth.currentUser?.uid ?: return@launch
                                             val itemsList = draftState.concepts.map { concept ->
                                                 mapOf(
-                                                    "original" to concept.term,
-                                                    "translation" to concept.definition,
-                                                    "image" to (concept.imageUrl ?: "")
+                                                    "term" to concept.term,
+                                                    "definition" to concept.definition,
+                                                    "imageArt" to (concept.imageUrl ?: "")
                                                 )
                                             }
                                             val deckData = hashMapOf(
                                                 "title" to draftState.title.ifEmpty { "Untitled Draft" },
-                                                "contentBase" to mapOf("title" to draftState.title.ifEmpty { "Untitled Draft" }),
+                                                "contentBase" to mapOf(
+                                                    "title" to draftState.title.ifEmpty { "Untitled Draft" },
+                                                    "items" to itemsList
+                                                ),
                                                 "topic" to draftState.topic,
                                                 "language" to "en",
                                                 "authorId" to uid,
                                                 "owner_id" to uid,
+                                                "owner_email" to (FirebaseManager.auth.currentUser?.email ?: ""),
                                                 "isPublic" to false,
                                                 "status" to "draft", 
                                                 "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
@@ -248,18 +257,22 @@ fun CreateDeckScreen(
                                             val uid = FirebaseManager.auth.currentUser?.uid ?: throw Exception("Not logged in")
                                             val itemsList = draftState.concepts.map { concept ->
                                                 mapOf(
-                                                    "original" to concept.term,
-                                                    "translation" to concept.definition,
-                                                    "image" to (concept.imageUrl ?: "")
+                                                    "term" to concept.term,
+                                                    "definition" to concept.definition,
+                                                    "imageArt" to (concept.imageUrl ?: "")
                                                 )
                                             }
                                             val deckData = hashMapOf(
                                                     "title" to draftState.title,
-                                                    "contentBase" to mapOf("title" to draftState.title),
+                                                    "contentBase" to mapOf(
+                                                        "title" to draftState.title,
+                                                        "items" to itemsList
+                                                    ),
                                                     "topic" to draftState.topic,
                                                     "language" to "en",
                                                     "authorId" to uid,
                                                     "owner_id" to uid,
+                                                    "owner_email" to (FirebaseManager.auth.currentUser?.email ?: ""),
                                                     "isPublic" to isPublic,
                                                     "status" to if (isPublic) "pending" else "private",
                                                     "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
@@ -619,17 +632,17 @@ fun Step4Images(
                             }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            var isGeneratingImage by remember { mutableStateOf(false) }
+                            var showRedoDialog by remember { mutableStateOf(false) }
                             val coroutineScope = rememberCoroutineScope()
                             val context = androidx.compose.ui.platform.LocalContext.current
 
-                            OutlinedButton(onClick = { /* TODO: Upload */}) { Text("Upload") }
-
-                            Button(
-                                    onClick = {
-                                        if (isGeneratingImage) return@Button
-                                        isGeneratingImage = true
-                                        coroutineScope.launch {
+                            val generateImage = {
+                                if (!concept.isGeneratingImage) {
+                                    val startConcepts = state.concepts.toMutableList()
+                                    startConcepts[index] = concept.copy(isGeneratingImage = true)
+                                    onStateChange(state.copy(concepts = startConcepts))
+                                    
+                                    coroutineScope.launch {
                                             try {
                                                 val isPro = userProfile?.isPro == true
                                                 val generated = userProfile?.imagesGeneratedThisMonth ?: 0
@@ -699,7 +712,7 @@ fun Step4Images(
 
                                                 val updatedConcepts = state.concepts.toMutableList()
                                                 updatedConcepts[index] =
-                                                        concept.copy(imageUrl = url)
+                                                        updatedConcepts[index].copy(imageUrl = url)
                                                 onStateChange(
                                                         state.copy(concepts = updatedConcepts)
                                                 )
@@ -711,19 +724,52 @@ fun Step4Images(
                                                         e
                                                 )
                                             } finally {
-                                                isGeneratingImage = false
+                                                val finalConcepts = state.concepts.toMutableList()
+                                                finalConcepts[index] = finalConcepts[index].copy(isGeneratingImage = false)
+                                                onStateChange(state.copy(concepts = finalConcepts))
                                             }
                                         }
+                                    }
+                                }
+
+                            if (showRedoDialog) {
+                                AlertDialog(
+                                    onDismissRequest = { showRedoDialog = false },
+                                    title = { Text("Redo Image") },
+                                    text = { Text("Generating a new image will replace the current one and the old image will be lost. Do you want to continue?") },
+                                    confirmButton = {
+                                        TextButton(onClick = {
+                                            showRedoDialog = false
+                                            generateImage()
+                                        }) {
+                                            Text("Continue", color = MaterialTheme.colorScheme.error)
+                                        }
                                     },
-                                    enabled = !isGeneratingImage
+                                    dismissButton = {
+                                        TextButton(onClick = { showRedoDialog = false }) {
+                                            Text("Cancel")
+                                        }
+                                    }
+                                )
+                            }
+
+                            Button(
+                                    onClick = {
+                                        if (concept.imageUrl != null) {
+                                            showRedoDialog = true
+                                        } else {
+                                            generateImage()
+                                        }
+                                    },
+                                    enabled = !concept.isGeneratingImage
                             ) {
-                                if (isGeneratingImage) {
+                                if (concept.isGeneratingImage) {
                                     CircularProgressIndicator(
                                             modifier = Modifier.size(20.dp),
                                             color = MaterialTheme.colorScheme.onPrimary
                                     )
                                 } else {
-                                    Text("Generate")
+                                    Text(if (concept.imageUrl != null) "Redo" else "Generate")
                                 }
                             }
                         }

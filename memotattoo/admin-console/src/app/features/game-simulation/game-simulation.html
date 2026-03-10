@@ -133,6 +133,13 @@
           class="absolute inset-0 pointer-events-none bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAADCAYAAABS3WWCAAAAE0lEQVQIW2P8//8/A8P///8ZmB4Awx8Jwyu8UCAAAAAASUVORK5CYII=')] bg-repeat opacity-[0.03]">
         </div>
       </div>
+      } @else if (currentConcept()) {
+      <div
+        class="w-full max-w-2xl aspect-square bg-slate-900 rounded-2xl border-4 border-slate-800 shadow-2xl flex items-center justify-center p-8 px-12 text-center">
+        <span appResizeText class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-slate-300 leading-tight drop-shadow-md text-wrap break-words">
+          {{ currentConcept()?.definition || currentConcept()?.translation || 'No description' }}
+        </span>
+      </div>
       } @else {
       <div
         class="w-full max-w-xl aspect-square bg-slate-900 rounded-2xl border-4 border-slate-800 flex items-center justify-center">

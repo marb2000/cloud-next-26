@@ -813,8 +813,8 @@ export class FlashcardStudio implements OnInit {
         artDirection: this.artDirection || null,
         artDirectionImage: this.artDirectionImage || null,
         publishedAt: new Date().toISOString(),
-        status: 'pending',
-        isPublic: false
+        status: 'published',
+        isPublic: true
       };
 
       const currentId = this.activeDraftId();
@@ -824,8 +824,8 @@ export class FlashcardStudio implements OnInit {
         await addDoc(collection(firestore, 'FlashcardDecks'), payload);
       }
 
-      this.logger.info('Deck Submitted', `Submitted a deck titled ${this.topicForm.value.topic} for moderation.`);
-      this.showToast('Flashcard submitted for moderation! It will appear in the library once approved.', 'success');
+      this.logger.info('Deck Published', `Published a public deck titled ${this.topicForm.value.topic} directly to the library.`);
+      this.showToast('Flashcard published! It is now live in the global library.', 'success');
 
       this.resetLocalState();
 

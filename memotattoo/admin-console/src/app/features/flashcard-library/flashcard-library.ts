@@ -1,4 +1,4 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { firestore } from '../../core/firebase/firebase';
@@ -11,7 +11,9 @@ interface FlashcardDeck {
   topic: string;
   previewImages: string[];
   publishedAt: string;
-  status: 'draft' | 'published' | 'unpublished' | 'locked';
+  status: 'draft' | 'published' | 'unpublished' | 'locked' | 'pending' | 'private';
+  owner_email?: string;
+  items?: any[];
   contentBase: any;
 }
 
@@ -21,9 +23,16 @@ interface FlashcardDeck {
   imports: [CommonModule, ConfirmDialogComponent],
   template: `
     <div class="flex items-center justify-between mb-8">
-      <h2 class="text-3xl font-bold text-slate-100 tracking-tight">Flashcard Library</h2>
+      <div class="flex items-center gap-4">
+        <h2 class="text-3xl font-bold text-slate-100 tracking-tight">Flashcard Library</h2>
+        <button (click)="showPrivateDecks.set(!showPrivateDecks())" 
+                class="px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors border"
+                [ngClass]="showPrivateDecks() ? 'bg-indigo-600/20 text-indigo-400 border-indigo-500/30 hover:bg-indigo-600/30' : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'">
+          {{ showPrivateDecks() ? 'Showing Private' : 'Private Hidden' }}
+        </button>
+      </div>
       <div class="flex gap-2">
-        <span class="px-3 py-1 bg-slate-800 rounded-lg text-sm font-semibold text-slate-400 border border-slate-700">Total: {{ decks().length }}</span>
+        <span class="px-3 py-1 bg-slate-800 rounded-lg text-sm font-semibold text-slate-400 border border-slate-700">Total: {{ filteredDecks().length }}</span>
       </div>
     </div>
     
@@ -31,16 +40,16 @@ interface FlashcardDeck {
       <div class="flex justify-center items-center py-20">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
       </div>
-    } @else if (decks().length === 0) {
+    } @else if (filteredDecks().length === 0) {
       <div class="text-center py-20 bg-slate-800/50 rounded-2xl border border-slate-700 border-dashed">
         <p class="text-slate-400">No flashcards found. Create one in the Flashcard Deck Studio!</p>
       </div>
     } @else {
       <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        @for (deck of decks(); track deck.id) {
+        @for (deck of filteredDecks(); track deck.id) {
           <div class="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden shadow-lg flex flex-col transition-all hover:border-slate-500 hover:shadow-xl">
             <!-- Header Image -->
-            <div class="h-64 w-full bg-slate-950 relative p-2 cursor-pointer group" (click)="deck.previewImages.length && viewDeckImages(deck.previewImages)">
+            <div class="h-64 w-full bg-slate-950 relative p-2 cursor-pointer group" (click)="deck.previewImages.length && openImageViewer(deck, 0)">
               @if (deck.previewImages.length === 1) {
                 <img [src]="deck.previewImages[0]" class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02]">
               } @else if (deck.previewImages.length > 1) {
@@ -81,8 +90,9 @@ interface FlashcardDeck {
             
             <!-- Cards Content -->
             <div class="p-6 flex flex-col flex-grow">
-              <h3 class="text-xl font-bold text-white mb-2 line-clamp-1">{{ deck.topic || 'Untitled Deck' }}</h3>
-              <p class="text-xs text-slate-400 mb-6 font-mono">{{ deck.publishedAt | date:'medium' }}</p>
+              <h3 class="text-xl font-bold text-white mb-1 line-clamp-1" [title]="deck.topic">{{ deck.topic || 'Untitled Deck' }}</h3>
+              <span class="text-xs text-indigo-400 font-mono line-clamp-1 block mb-2">{{ deck.owner_email ? 'By: ' + deck.owner_email : 'System Deck' }}</span>
+              <p class="text-[10px] text-slate-500 mb-6 font-mono uppercase tracking-wider">{{ deck.publishedAt | date:'medium' }}</p>
               
               <div class="mt-auto space-y-4">
                 <!-- Status Switcher Actions -->
@@ -151,33 +161,39 @@ interface FlashcardDeck {
     }
 
     <!-- Image Viewer Modal Overlay -->
-    @if (viewingImages().length > 0) {
+    @if (viewingItems().length > 0) {
       <div class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-4 animate-fade-in-up">
         <!-- Close Button (Positioned relative to viewport) -->
         <button (click)="closeImageViewer()" class="absolute top-6 right-6 text-slate-400 hover:text-white bg-slate-800 rounded-full p-3 shadow-lg z-50 transition-colors outline-none cursor-pointer">
            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
 
-        <div class="relative w-full h-full flex items-center justify-center max-w-[95vw] lg:max-w-7xl">
-            <div class="flex items-center gap-4 w-full h-full justify-center">
-                @if (viewingImages().length > 1) {
+        <div class="relative w-full h-full flex flex-col items-center justify-center max-w-[95vw] lg:max-w-7xl pb-16">
+            <div class="flex items-center gap-4 w-full justify-center" style="height: calc(100vh - 160px);">
+                @if (viewingItems().length > 1) {
                   <button (click)="prevImage($event)" class="text-white bg-slate-800/50 hover:bg-slate-700 p-3 rounded-full z-50 transition-colors shrink-0">
                      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
                   </button>
                 }
                 
-                <img [src]="viewingImages()[viewingImageIndex()]" class="max-w-[85%] max-h-[90vh] object-contain rounded-xl shadow-2xl border border-slate-700 pointer-events-auto">
+                <img [src]="viewingItems()[viewingImageIndex()].image" class="max-w-[85%] max-h-full object-contain rounded-xl shadow-2xl border border-slate-700 pointer-events-auto">
                 
-                @if (viewingImages().length > 1) {
+                @if (viewingItems().length > 1) {
                   <button (click)="nextImage($event)" class="text-white bg-slate-800/50 hover:bg-slate-700 p-3 rounded-full z-50 transition-colors shrink-0">
                      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                   </button>
                 }
             </div>
+            
+            <!-- Caption below image -->
+            <div class="mt-4 text-center max-w-2xl text-white pointer-events-auto pb-8">
+              <h2 class="text-2xl font-bold mb-2">{{ viewingItems()[viewingImageIndex()].original }}</h2>
+              <p class="text-lg text-slate-300">{{ viewingItems()[viewingImageIndex()].translation }}</p>
+            </div>
 
-            @if (viewingImages().length > 1) {
-               <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-slate-900/80 px-4 py-2 rounded-full text-white font-bold text-sm">
-                  {{ viewingImageIndex() + 1 }} / {{ viewingImages().length }}
+            @if (viewingItems().length > 1) {
+               <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900/80 px-4 py-2 rounded-full text-white font-bold text-sm pointer-events-auto">
+                  {{ viewingImageIndex() + 1 }} / {{ viewingItems().length }}
                </div>
             }
         </div>
@@ -199,10 +215,12 @@ interface FlashcardDeck {
 })
 export class FlashcardLibrary implements OnInit {
   decks = signal<FlashcardDeck[]>([]);
+  showPrivateDecks = signal<boolean>(false);
+  filteredDecks = computed(() => this.decks().filter(d => this.showPrivateDecks() || d.status !== 'private'));
   isLoading = signal<boolean>(true);
   editingDeck = signal<FlashcardDeck | null>(null);
 
-  viewingImages = signal<string[]>([]);
+  viewingItems = signal<any[]>([]);
   viewingImageIndex = signal<number>(0);
 
   // Generic state for custom confirmation dialogs
@@ -218,24 +236,31 @@ export class FlashcardLibrary implements OnInit {
   constructor(private logger: ActivityLogService, private router: Router) { }
 
   ngOnInit() {
-    const q = query(collection(firestore, 'FlashcardDecks'), orderBy('publishedAt', 'desc'));
+    const q = query(collection(firestore, 'FlashcardDecks'));
     onSnapshot(q, (snap) => {
       const data: FlashcardDeck[] = [];
       snap.forEach(docSnap => {
         const d = docSnap.data();
-        const items = d['contentBase']?.items || [];
+
+        const items = d['items'] || d['contentBase']?.items || [];
         const previewImages = items
-          .map((item: any) => item.imageArt)
+          .map((item: any) => item.image || item.imageArt)
           .filter((url: string) => !!url);
 
         data.push({
           id: docSnap.id,
           topic: d['topic'],
+          owner_email: d['owner_email'],
           previewImages: previewImages,
           publishedAt: d['publishedAt'],
           status: d['status'] || 'draft',
-          contentBase: d['contentBase']
+          contentBase: d['contentBase'] || { items }
         });
+      });
+      data.sort((a, b) => {
+        const timeA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+        const timeB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+        return timeB - timeA;
       });
       this.decks.set(data);
       this.isLoading.set(false);
@@ -315,21 +340,31 @@ export class FlashcardLibrary implements OnInit {
   }
 
   editDeck(deck: FlashcardDeck) {
-    const items = deck.contentBase?.items || [];
+    const items = deck.contentBase?.items || deck.items || [];
     const drafts = items.map((item: any) => ({
-      term: item.term || '',
-      definition: item.definition || '',
-      images: item.imageArt ? [item.imageArt] : [],
+      term: item.term || item.original || item.caption || '',
+      definition: item.definition || item.translation || item.description || '',
+      images: (item.imageArt || item.image) ? [item.imageArt || item.image] : [],
       selectedIndex: 0,
       refinePrompt: '',
       isGenerating: false
     }));
 
+    // Reconstruct a valid contentBase for the Studio's JSON Editor
+    const editableJsonObj = deck.contentBase || {
+      title: deck.topic || deck.contentBase?.title || 'Imported Deck',
+      items: items.map((item: any) => ({
+        term: item.term || item.original || item.caption || '',
+        definition: item.definition || item.translation || item.description || '',
+        imageArt: item.imageArt || item.image || null
+      }))
+    };
+
     const draftData = {
       activeDraftId: deck.id,
       isEditingExisting: true,
-      formValue: { topic: deck.topic, numConcepts: items.length || 5 },
-      editableJson: JSON.stringify(deck.contentBase, null, 2),
+      formValue: { topic: deck.topic || editableJsonObj.title, numConcepts: items.length || 5 },
+      editableJson: JSON.stringify(editableJsonObj, null, 2),
       artDirection: '',
       conceptDrafts: drafts
     };
@@ -339,19 +374,25 @@ export class FlashcardLibrary implements OnInit {
     this.router.navigate(['/flashcard-studio']);
   }
 
-  viewDeckImages(images: string[]) {
-    this.viewingImages.set(images);
-    this.viewingImageIndex.set(0);
+  openImageViewer(deck: FlashcardDeck, index: number) {
+    const items = deck.contentBase?.items || deck.items || [];
+    const viewerItems = items.map((item: any) => ({
+      image: item.imageArt || item.image || '',
+      original: item.caption || item.original || item.term || '',
+      translation: item.description || item.translation || item.definition || ''
+    }));
+    this.viewingItems.set(viewerItems);
+    this.viewingImageIndex.set(index);
   }
 
   closeImageViewer() {
-    this.viewingImages.set([]);
+    this.viewingItems.set([]);
     this.viewingImageIndex.set(0);
   }
 
   nextImage(event: Event) {
     event.stopPropagation();
-    const imgs = this.viewingImages();
+    const imgs = this.viewingItems();
     if (this.viewingImageIndex() < imgs.length - 1) {
       this.viewingImageIndex.update(i => i + 1);
     } else {
@@ -361,7 +402,7 @@ export class FlashcardLibrary implements OnInit {
 
   prevImage(event: Event) {
     event.stopPropagation();
-    const imgs = this.viewingImages();
+    const imgs = this.viewingItems();
     if (this.viewingImageIndex() > 0) {
       this.viewingImageIndex.update(i => i - 1);
     } else {

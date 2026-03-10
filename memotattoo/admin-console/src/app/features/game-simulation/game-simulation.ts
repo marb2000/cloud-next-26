@@ -7,6 +7,7 @@ import { firestore, ai } from '../../core/firebase/firebase';
 import { getGenerativeModel, ChatSession } from 'firebase/ai';
 import { GameStateService, ChatMessage } from './game-state.service';
 import { UserService } from '../../core/auth/user.service'; // Added import
+import { ResizeText } from '../../shared/directives/resize-text';
 
 @Component({
   selector: 'app-game-simulation',

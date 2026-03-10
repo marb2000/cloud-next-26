@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+@theme {
+  --text-base: 1rem;
+}
+
 :root {
   --nano-primary: #8c7777;
   --nano-secondary: #ec4899;

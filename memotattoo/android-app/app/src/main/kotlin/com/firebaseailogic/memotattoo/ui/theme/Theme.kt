@@ -15,20 +15,23 @@ import androidx.compose.ui.graphics.Color
 private val DarkColorScheme = darkColorScheme(
     primary = MemoPrimary,
     secondary = MemoTeal,
-    tertiary = MemoPink,
+    tertiary = MemoAmber,
     background = MemoDarkBackground,
     surface = MemoSurface,
     onPrimary = Color.White,
-    onBackground = Color(0xFFF8FAFC)
+    onBackground = Color(0xFFF8FAFC),
+    onSurface = Color.White
 )
 
 private val LightColorScheme = lightColorScheme(
     primary = MemoPrimaryDark,
     secondary = MemoTealDark,
-    tertiary = MemoPink,
+    tertiary = MemoAmber,
     background = Color(0xFFF8FAFC),
     surface = Color.White,
-    onPrimary = Color.White
+    onPrimary = Color.White,
+    onBackground = MemoDarkBackground,
+    onSurface = MemoDarkBackground
 )
 
 @Composable
@@ -41,6 +44,7 @@ fun MemoTattooTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = Shapes,
         content = content
     )
 }

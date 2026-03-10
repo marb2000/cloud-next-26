@@ -47,11 +47,10 @@ service cloud.firestore {
     }
 
     // Users: Users can read/update their own profiles.
-    // However, they can never artificially inflate their own energy_bolts unless they are an Admin.
+    // Relaxed for Mock Billing: Allowing users to update their own energy_bolts directly from the client.
     match /Users/{userId} {
       allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
-      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == userId
-                    && request.resource.data.energy_bolts <= resource.data.energy_bolts);
+      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
       allow create: if isAuthenticated() && request.auth.uid == userId;
       allow delete: if isAdmin();
 

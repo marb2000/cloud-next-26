@@ -12,12 +12,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.firebaseailogic.memotattoo.data.FirebaseManager
+import com.firebaseailogic.memotattoo.ui.theme.MemoGradientBrush
+import com.firebaseailogic.memotattoo.ui.theme.Shapes
 import kotlinx.coroutines.tasks.await
 
 data class FlashcardDeckSummary(
@@ -42,6 +46,40 @@ fun FlashcardHubScreen(
     var publicDecks by remember { mutableStateOf<List<FlashcardDeckSummary>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
+    var deckToDelete by remember { mutableStateOf<FlashcardDeckSummary?>(null) }
+    
+    // Add delete dialog
+    if (deckToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { deckToDelete = null },
+            title = { Text("Delete Deck") },
+            text = { Text("Are you sure you want to permanently delete '${deckToDelete?.title}'? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val deckId = deckToDelete?.id
+                        deckToDelete = null
+                        if (deckId != null) {
+                            FirebaseManager.firestore
+                                .collection("FlashcardDecks")
+                                .document(deckId)
+                                .delete()
+                                .addOnSuccessListener {
+                                    myDecks = myDecks.filter { it.id != deckId }
+                                }
+                        }
+                    }
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deckToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     val userProfile by userProfileViewModel.userProfile.collectAsState()
     val energyBolts = userProfile?.energyBolts ?: 0
@@ -64,6 +102,7 @@ fun FlashcardHubScreen(
             val snapshot = FirebaseManager.firestore.collection("FlashcardDecks").get().await()
             val loadedDecks =
                     snapshot.documents.map { doc ->
+                        @Suppress("UNCHECKED_CAST")
                         val contentBase = doc.get("contentBase") as? Map<String, Any>
                         FlashcardDeckSummary(
                                 id = doc.id,
@@ -79,7 +118,7 @@ fun FlashcardHubScreen(
                     }
             val allDecks = loadedDecks
 
-            myDecks = allDecks.filter { it.ownerId == currentUid }
+            myDecks = allDecks.filter { it.ownerId == currentUid && !it.isPublic }
             publicDecks = allDecks.filter { it.isPublic }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -92,12 +131,16 @@ fun FlashcardHubScreen(
             floatingActionButton = {
                 FloatingActionButton(
                         onClick = { navController.navigate("create_deck") },
-                        containerColor = MaterialTheme.colorScheme.primary
+                        shape = Shapes.large,
+                        containerColor = Color.Transparent,
+                        elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp),
+                        modifier = Modifier
+                            .background(MemoGradientBrush, shape = Shapes.large)
                 ) {
                     Text(
                             "+",
                             style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onPrimary
+                            color = Color.White
                     )
                 }
             }
@@ -116,7 +159,7 @@ fun FlashcardHubScreen(
             ) {
                 Text(
                         text = "Flashcard Hub",
-                        style = MaterialTheme.typography.displaySmall,
+                        style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.ExtraBold),
                         color = MaterialTheme.colorScheme.primary
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -124,15 +167,14 @@ fun FlashcardHubScreen(
                         Icon(imageVector = Icons.Default.Person, contentDescription = "Settings")
                     }
                     Surface(
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.clickable { navController.navigate("billing") }
+                            shape = Shapes.medium,
+                            modifier = Modifier.clip(Shapes.medium).background(MemoGradientBrush).clickable { navController.navigate("billing") }
                     ) {
                         Text(
                                 text = "⚡ $energyBolts",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = Color.White,
+                                modifier = Modifier.background(Color.Transparent).padding(horizontal = 16.dp, vertical = 8.dp)
                         )
                     }
                 }
@@ -156,7 +198,7 @@ fun FlashcardHubScreen(
             }
 
             if (isLoading) {
-                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.weight(1f).fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             } else {
@@ -171,6 +213,7 @@ fun FlashcardHubScreen(
                                 deck = deck,
                                 onClick = { navController.navigate("challenge/${deck.id}") },
                                 onEdit = { navController.navigate("create_deck?draftId=${deck.id}") },
+                                onDelete = { deckToDelete = deck },
                                 onMakePublic = {
                                     // Update Firestore document to enter the moderation queue
                                     FirebaseManager.firestore
@@ -196,14 +239,18 @@ fun FlashcardHubScreen(
 }
 
 @Composable
-fun DeckCard(deck: FlashcardDeckSummary, onClick: () -> Unit, onEdit: () -> Unit, onMakePublic: () -> Unit) {
+fun DeckCard(deck: FlashcardDeckSummary, onClick: () -> Unit, onEdit: () -> Unit, onDelete: (() -> Unit)? = null, onMakePublic: () -> Unit) {
     Surface(
             modifier =
                     Modifier.fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable(onClick = onClick),
+                            .clip(Shapes.large)
+                            .clickable(
+                                enabled = deck.status != "pending",
+                                onClick = onClick
+                            ),
             color = MaterialTheme.colorScheme.surfaceVariant,
-            shadowElevation = 2.dp
+            shape = Shapes.large,
+            shadowElevation = 4.dp
     ) {
         Column {
             Row(
@@ -228,6 +275,13 @@ fun DeckCard(deck: FlashcardDeckSummary, onClick: () -> Unit, onEdit: () -> Unit
                             Badge(containerColor = MaterialTheme.colorScheme.secondary) {
                                 Text("In Review", color = MaterialTheme.colorScheme.onSecondary)
                             }
+                        } else {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            ) {
+                                Text("Private", color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
@@ -245,16 +299,35 @@ fun DeckCard(deck: FlashcardDeckSummary, onClick: () -> Unit, onEdit: () -> Unit
                         )
                     }
                 }
+                
+                // Optional Delete Action
+                if (onDelete != null && deck.status != "pending" && !deck.isPublic) {
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete Deck",
+                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                        )
+                    }
+                }
                 // Simple indicator
                 Box(
                         modifier =
                                 Modifier.size(40.dp)
                                         .clip(RoundedCornerShape(20.dp))
                                         .background(
-                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                                                MaterialTheme.colorScheme.primary.copy(
+                                                    alpha = if (deck.status == "pending") 0.05f else 0.1f
+                                                )
                                         ),
                         contentAlignment = Alignment.Center
-                ) { Text(text = "▶", color = MaterialTheme.colorScheme.primary) }
+                ) { Text(
+                        text = "▶", 
+                        color = MaterialTheme.colorScheme.primary.copy(
+                            alpha = if (deck.status == "pending") 0.3f else 1f
+                        )
+                    ) 
+                }
             }
             // Add Mod actions for decks the user owns that aren't public yet
             if (!deck.isPublic && deck.status != "pending" && deck.type == "FlashcardDeck"
@@ -262,13 +335,14 @@ fun DeckCard(deck: FlashcardDeckSummary, onClick: () -> Unit, onEdit: () -> Unit
                 HorizontalDivider(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
                 )
-                if (deck.status == "draft") {
-                    TextButton(onClick = { onEdit() }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Continue Editing Draft", color = MaterialTheme.colorScheme.primary)
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    TextButton(onClick = { onEdit() }, modifier = Modifier.weight(1f)) {
+                        Text(if (deck.status == "draft") "Continue Draft" else "Edit Deck", color = MaterialTheme.colorScheme.primary)
                     }
-                } else {
-                    TextButton(onClick = { onMakePublic() }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Publish to Global Library", color = MaterialTheme.colorScheme.primary)
+                    if (deck.status != "draft") {
+                        TextButton(onClick = { onMakePublic() }, modifier = Modifier.weight(1f)) {
+                            Text("Publish", color = MaterialTheme.colorScheme.primary)
+                        }
                     }
                 }
             }
