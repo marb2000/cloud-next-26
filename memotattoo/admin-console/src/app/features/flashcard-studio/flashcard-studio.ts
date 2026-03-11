@@ -64,6 +64,10 @@ export class FlashcardStudio implements OnInit {
   activeDraftId = signal<string | null>(null);
   isEditingExisting = signal<boolean>(false);
   showDeleteConfirm = signal<boolean>(false);
+  originalStatus = signal<string>('draft');
+  originalIsPublic = signal<boolean>(false);
+  originalOwnerId = signal<string>('');
+  originalOwnerEmail = signal<string>('');
 
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -102,7 +106,11 @@ export class FlashcardStudio implements OnInit {
       artDirectionImage: this.artDirectionImage,
       conceptDrafts: cleanDrafts,
       activeDraftId: this.activeDraftId(),
-      isEditingExisting: this.isEditingExisting()
+      isEditingExisting: this.isEditingExisting(),
+      originalStatus: this.originalStatus(),
+      originalIsPublic: this.originalIsPublic(),
+      originalOwnerId: this.originalOwnerId(),
+      originalOwnerEmail: this.originalOwnerEmail()
     };
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData));
 
@@ -140,8 +148,16 @@ export class FlashcardStudio implements OnInit {
       artDirection: this.artDirection || null,
       artDirectionImage: this.artDirectionImage || null,
       publishedAt: new Date().toISOString(),
-      status: 'draft'
+      status: this.isEditingExisting() ? this.originalStatus() : 'draft',
+      isPublic: this.isEditingExisting() ? this.originalIsPublic() : false,
+      owner_id: this.isEditingExisting() ? (this.originalOwnerId() || null) : (this.userService.user()?.uid || null),
+      owner_email: this.isEditingExisting() ? (this.originalOwnerEmail() || null) : (this.userService.user()?.email || null)
     };
+    
+    // Explicitly override isPublic if status is private or draft
+    if (payload.status === 'private' || payload.status === 'draft') {
+      payload.isPublic = false;
+    }
 
     try {
       if (currentId) {
@@ -191,6 +207,10 @@ export class FlashcardStudio implements OnInit {
         if (draftData.isEditingExisting) {
           this.isEditingExisting.set(draftData.isEditingExisting);
         }
+        if (draftData.originalStatus) this.originalStatus.set(draftData.originalStatus);
+        if (draftData.originalIsPublic !== undefined) this.originalIsPublic.set(draftData.originalIsPublic);
+        if (draftData.originalOwnerId) this.originalOwnerId.set(draftData.originalOwnerId);
+        if (draftData.originalOwnerEmail) this.originalOwnerEmail.set(draftData.originalOwnerEmail);
       } catch (e) {
         console.warn("Failed to parse LocalStorage Draft.");
       }
@@ -807,15 +827,24 @@ export class FlashcardStudio implements OnInit {
         }
       }
 
+      const currentUser = this.userService.user();
+
       const payload = {
         topic: this.topicForm.value.topic,
         contentBase: data,
         artDirection: this.artDirection || null,
         artDirectionImage: this.artDirectionImage || null,
         publishedAt: new Date().toISOString(),
-        status: 'published',
-        isPublic: true
+        status: this.isEditingExisting() ? this.originalStatus() : 'published',
+        isPublic: this.isEditingExisting() ? this.originalIsPublic() : true,
+        owner_id: this.isEditingExisting() ? (this.originalOwnerId() || null) : (currentUser?.uid || null),
+        owner_email: this.isEditingExisting() ? (this.originalOwnerEmail() || null) : (currentUser?.email || null)
       };
+
+      // Explicitly override isPublic if status is private or draft
+      if (payload.status === 'private' || payload.status === 'draft') {
+        payload.isPublic = false;
+      }
 
       const currentId = this.activeDraftId();
       if (currentId) {
@@ -824,8 +853,12 @@ export class FlashcardStudio implements OnInit {
         await addDoc(collection(firestore, 'FlashcardDecks'), payload);
       }
 
-      this.logger.info('Deck Published', `Published a public deck titled ${this.topicForm.value.topic} directly to the library.`);
-      this.showToast('Flashcard published! It is now live in the global library.', 'success');
+      const verb = this.isEditingExisting() ? 'Saved' : 'Published';
+      const actionMessage = this.isEditingExisting() ? 'saved changes to an existing deck' : 'published a public deck directly to the library';
+      const toastMessage = this.isEditingExisting() ? 'Changes saved successfully!' : 'Flashcard published! It is now live in the global library.';
+
+      this.logger.info(`Deck ${verb}`, `${actionMessage} titled ${this.topicForm.value.topic} directly to the library.`);
+      this.showToast(toastMessage, 'success');
 
       this.resetLocalState();
 

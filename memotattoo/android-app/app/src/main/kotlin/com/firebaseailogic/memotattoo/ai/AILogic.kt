@@ -1,5 +1,6 @@
 package com.firebaseailogic.memotattoo.ai
 
+import com.firebaseailogic.memotattoo.ui.flashcards.ConceptDraft
 import com.google.firebase.Firebase
 import com.google.firebase.ai.Chat
 import com.google.firebase.ai.ai
@@ -12,15 +13,20 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 @OptIn(PublicPreviewAPI::class)
-object AILogic {
-        /**
-         * Firebase Vertex AI gives us access to Gemini models natively using Firebase App Check
-         * implicitly to protect against abuse.
-         */
-        private val generativeModel = Firebase.ai.generativeModel("gemini-1.5-flash")
-        private val templateModel = Firebase.ai.templateGenerativeModel()
+interface IAILogic {
+    suspend fun generateTopic(topic: String, numConcepts: Int): Map<String, Any>
+    suspend fun brainstormMore(topic: String, currentConcepts: List<ConceptDraft>, numConcepts: Int): List<ConceptDraft>
+    suspend fun generateConceptImage(title: String, term: String, definition: String, artDirection: String?): String
+}
 
-        suspend fun generateTopic(topic: String, numConcepts: Int): Map<String, Any> {
+@OptIn(PublicPreviewAPI::class)
+object AILogic : IAILogic {
+
+        private val generativeModel by lazy { Firebase.ai.generativeModel("gemini-2.5-flash") }
+        private val templateModel by lazy { Firebase.ai.templateGenerativeModel() }
+
+        @OptIn(PublicPreviewAPI::class)
+        override suspend fun generateTopic(topic: String, numConcepts: Int): Map<String, Any> {
                 val response =
                         templateModel.generateContent(
                                 "memotattoo-generatate-topic-v1",
@@ -48,14 +54,21 @@ object AILogic {
                 return mapOf("title" to title, "items" to itemsList)
         }
 
-        suspend fun brainstormMore(
+        @OptIn(PublicPreviewAPI::class)
+        override suspend fun brainstormMore(
                 topic: String,
-                existingTerms: String
-        ): List<Map<String, String>> {
+                currentConcepts: List<ConceptDraft>,
+                numConcepts: Int
+        ): List<ConceptDraft> {
+                val existingTerms = currentConcepts.joinToString(", ") { it.term }
                 val response =
                         templateModel.generateContent(
                                 "memotattoo-brainstorm-more-v1",
-                                mapOf("topic" to topic, "existing_terms" to existingTerms)
+                                mapOf(
+                                    "topic" to topic,
+                                    "existing_terms" to existingTerms,
+                                    "numConcepts" to numConcepts
+                                )
                         )
                 val text =
                         response.text?.trim()?.removePrefix("```json")?.removeSuffix("```")?.trim()
@@ -73,10 +86,11 @@ object AILogic {
                                 )
                         )
                 }
-                return itemsList
+                return itemsList.map { ConceptDraft(it["term"] ?: "", it["definition"] ?: "") }
         }
 
-        suspend fun generateConceptImage(
+        @OptIn(PublicPreviewAPI::class)
+        override suspend fun generateConceptImage(
                 title: String,
                 term: String,
                 definition: String,

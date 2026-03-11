@@ -3,6 +3,8 @@ package com.firebaseailogic.memotattoo.ui.flashcards
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.firebaseailogic.memotattoo.data.FirebaseManager
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,14 +21,17 @@ data class UserProfile(
         val currentPeriodEnd: Long? = null
 )
 
-class UserProfileViewModel : ViewModel() {
+class UserProfileViewModel(
+    private val auth: FirebaseAuth = FirebaseManager.auth,
+    private val firestore: FirebaseFirestore = FirebaseManager.firestore
+) : ViewModel() {
     private val _userProfile = MutableStateFlow<UserProfile?>(null)
     val userProfile: StateFlow<UserProfile?> = _userProfile.asStateFlow()
 
     private var firestoreListener: ListenerRegistration? = null
 
     init {
-        FirebaseManager.auth.addAuthStateListener { firebaseAuth ->
+        auth.addAuthStateListener { firebaseAuth ->
             val user = firebaseAuth.currentUser
             if (user != null) {
                 startListening(user.uid)
@@ -40,7 +45,7 @@ class UserProfileViewModel : ViewModel() {
     private fun startListening(uid: String) {
         stopListening()
         firestoreListener =
-                FirebaseManager.firestore.collection("Users").document(uid).addSnapshotListener {
+                firestore.collection("Users").document(uid).addSnapshotListener {
                         snapshot,
                         e ->
                     if (e != null) {
@@ -66,7 +71,7 @@ class UserProfileViewModel : ViewModel() {
                         val now = System.currentTimeMillis()
                         if (profile.isPro && profile.cancelAtPeriodEnd && profile.currentPeriodEnd != null && now > profile.currentPeriodEnd) {
                                 // Downgrade to Free
-                                FirebaseManager.firestore.collection("Users").document(uid).update(
+                                firestore.collection("Users").document(uid).update(
                                         mapOf(
                                                 "isPro" to false,
                                                 "cancelAtPeriodEnd" to false,

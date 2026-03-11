@@ -275,9 +275,9 @@
         <button type="button" (click)="saveToGlobalLibrary()" [disabled]="isSaving() || !canPublish()"
           class="w-full py-4 bg-teal-600 hover:bg-teal-500 disabled:bg-slate-700 transition-colors text-white rounded-xl font-bold text-lg shadow-lg shadow-teal-500/20">
           @if (isSaving()) {
-          Submitting to Moderation Queue...
+          {{ isEditingExisting() ? 'Saving Changes...' : 'Submitting to Moderation Queue...' }}
           } @else {
-          Submit for Public Moderation
+          {{ isEditingExisting() ? 'Save Changes' : 'Submit for Public Moderation' }}
           }
         </button>
       </div>

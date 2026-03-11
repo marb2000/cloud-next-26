@@ -8,6 +8,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -23,24 +25,11 @@ import com.firebaseailogic.memotattoo.data.FirebaseManager
 import com.firebaseailogic.memotattoo.ui.components.FullScreenImageViewer
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import androidx.compose.foundation.text.BasicTextField
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
 
-data class DraftState(
-        var step: Int = 1,
-        var topic: String = "",
-        var numberOfItems: String = "5",
-        var title: String = "",
-        var concepts: MutableList<ConceptDraft> = mutableListOf(),
-        var globalArtDirection: String = "",
-        var globalArtImageUri: String? = null,
-        var draftId: String? = null
-)
-
-data class ConceptDraft(
-        var term: String = "",
-        var definition: String = "",
-        var imageUrl: String? = null,
-        var isGeneratingImage: Boolean = false
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,57 +37,17 @@ fun CreateDeckScreen(
         navController: NavController,
         draftId: String? = null,
         userProfileViewModel: com.firebaseailogic.memotattoo.ui.flashcards.UserProfileViewModel =
-                androidx.lifecycle.viewmodel.compose.viewModel()
+                androidx.lifecycle.viewmodel.compose.viewModel(),
+        viewModel: CreateDeckViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
-    var draftState by remember { mutableStateOf(DraftState(draftId = draftId)) }
-    var isLoading by remember { mutableStateOf(draftId != null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val draftState by viewModel.uiState.collectAsState()
+    val isViewModelLoading by viewModel.isLoading.collectAsState()
+    val viewModelErrorMessage by viewModel.errorMessage.collectAsState()
     var fullScreenImageUrl by remember { mutableStateOf<String?>(null) }
-    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(draftId) {
         if (draftId != null) {
-            try {
-                val doc = FirebaseManager.firestore.collection("FlashcardDecks").document(draftId).get().await()
-                if (doc.exists()) {
-                    @Suppress("UNCHECKED_CAST")
-                    val contentBase = doc.get("contentBase") as? Map<String, Any>
-                    val title = contentBase?.get("title") as? String ?: doc.getString("title") ?: ""
-                    val topic = doc.getString("topic") ?: ""
-                    
-                    @Suppress("UNCHECKED_CAST")
-                    val rootItems = doc.get("items") as? List<Map<String, Any>> ?: emptyList()
-                    @Suppress("UNCHECKED_CAST")
-                    val baseItems = contentBase?.get("items") as? List<Map<String, Any>> ?: emptyList()
-                    val items = if (baseItems.isNotEmpty()) baseItems else rootItems
-
-                    val artDir = doc.getString("artDirection") ?: ""
-                    val artRef = doc.getString("artReferenceImage")
-                    
-                    val parsedConcepts = items.map { 
-                        ConceptDraft(
-                            term = it["term"]?.toString() ?: it["original"]?.toString() ?: "",
-                            definition = it["definition"]?.toString() ?: it["translation"]?.toString() ?: "",
-                            imageUrl = (it["imageArt"]?.toString() ?: it["image"]?.toString())?.takeIf { img -> img.isNotBlank() }
-                        ) 
-                    }
-                    
-                    draftState = DraftState(
-                        step = if (parsedConcepts.isNotEmpty()) 5 else 1,
-                        topic = topic,
-                        numberOfItems = parsedConcepts.size.takeIf { it > 0 }?.toString() ?: "5",
-                        title = title,
-                        concepts = parsedConcepts.toMutableList(),
-                        globalArtDirection = artDir,
-                        globalArtImageUri = artRef,
-                        draftId = draftId
-                    )
-                }
-            } catch (e: Exception) {
-                errorMessage = "Failed to load draft: ${e.message}"
-            } finally {
-                isLoading = false
-            }
+            viewModel.loadDraft(draftId)
         }
     }
 
@@ -123,49 +72,9 @@ fun CreateDeckScreen(
                                 onClick = {
                                     if (isSavingDraft) return@TextButton
                                     isSavingDraft = true
-                                    coroutineScope.launch {
-                                        try {
-                                            val uid = FirebaseManager.auth.currentUser?.uid ?: return@launch
-                                            val itemsList = draftState.concepts.map { concept ->
-                                                mapOf(
-                                                    "term" to concept.term,
-                                                    "definition" to concept.definition,
-                                                    "imageArt" to (concept.imageUrl ?: "")
-                                                )
-                                            }
-                                            val deckData = hashMapOf(
-                                                "title" to draftState.title.ifEmpty { "Untitled Draft" },
-                                                "contentBase" to mapOf(
-                                                    "title" to draftState.title.ifEmpty { "Untitled Draft" },
-                                                    "items" to itemsList
-                                                ),
-                                                "topic" to draftState.topic,
-                                                "language" to "en",
-                                                "authorId" to uid,
-                                                "owner_id" to uid,
-                                                "owner_email" to (FirebaseManager.auth.currentUser?.email ?: ""),
-                                                "isPublic" to false,
-                                                "status" to "draft", 
-                                                "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
-                                                "items" to itemsList,
-                                                "artDirection" to draftState.globalArtDirection,
-                                                "artReferenceImage" to (draftState.globalArtImageUri ?: "")
-                                            )
-                                            
-                                            val docRef = if (draftState.draftId != null) {
-                                                FirebaseManager.firestore.collection("FlashcardDecks").document(draftState.draftId!!)
-                                            } else {
-                                                FirebaseManager.firestore.collection("FlashcardDecks").document()
-                                            }
-                                            
-                                            docRef.set(deckData).await()
-                                            draftState = draftState.copy(draftId = docRef.id)
-                                            navController.popBackStack()
-                                        } catch (e: Exception) {
-                                            errorMessage = "Failed to save: ${e.message}"
-                                        } finally {
-                                            isSavingDraft = false
-                                        }
+                                    viewModel.saveDraft {
+                                        isSavingDraft = false
+                                        navController.popBackStack()
                                     }
                                 },
                                 enabled = !isSavingDraft
@@ -179,7 +88,7 @@ fun CreateDeckScreen(
                         },
                         colors =
                                 TopAppBarDefaults.topAppBarColors(
-                                        containerColor = MaterialTheme.colorScheme.background
+                                         containerColor = MaterialTheme.colorScheme.background
                                 )
                 )
             }
@@ -218,7 +127,7 @@ fun CreateDeckScreen(
                 )
             }
 
-            if (errorMessage != null) {
+            if (viewModelErrorMessage != null) {
                 Card(
                         colors =
                                 CardDefaults.cardColors(
@@ -226,72 +135,66 @@ fun CreateDeckScreen(
                                 ),
                         modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                            text = errorMessage!!,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(12.dp)
-                    )
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                                text = viewModelErrorMessage!!,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = { viewModel.setErrorMessage(null) }) {
+                            Icon(Icons.Default.Add, contentDescription = "Clear", modifier = Modifier.size(16.dp)) // Using Add as a placeholder for clear/close if needed, or just remove
+                        }
+                    }
                 }
             }
 
             // Step Content Area
             Box(modifier = Modifier.weight(1f)) {
                 when (draftState.step) {
-                    1 -> Step1Topic(draftState) { draftState = it }
-                    2 -> Step2Content(draftState) { draftState = it }
-                    3 -> Step3ArtDirection(draftState, onImageClick = { url -> fullScreenImageUrl = url }) { draftState = it }
-                    4 -> Step4Images(draftState, energyBolts, userProfile, { navController.navigate("billing") }, onImageClick = { url -> fullScreenImageUrl = url }) { draftState = it }
+                    1 -> Step1Topic(
+                        state = draftState,
+                        onTopicChange = { viewModel.updateTopic(it) },
+                        onCountChange = { viewModel.updateNumberOfItems(it) }
+                    )
+                    2 -> Step2Content(
+                        state = draftState,
+                        onTitleChange = { viewModel.updateTitle(it) },
+                        onConceptChange = { idx, term, def -> viewModel.updateConcept(idx, term, def) },
+                        onDeleteItem = { viewModel.deleteConcept(it) },
+                        onBrainstormMore = { viewModel.brainstormMore() }
+                    )
+                    3 -> Step3ArtDirection(
+                        state = draftState,
+                        onArtDirectionChange = { viewModel.updateArtDirection(it) },
+                        onArtImageChange = { viewModel.updateArtImage(it) },
+                        onImageClick = { url -> fullScreenImageUrl = url }
+                    )
+                    4 -> Step4Images(
+                        state = draftState,
+                        onGenerateImage = { index -> 
+                            viewModel.generateImage(
+                                index = index,
+                                isPro = userProfile?.isPro == true,
+                                energyBolts = energyBolts,
+                                generatedThisMonth = userProfile?.imagesGeneratedThisMonth ?: 0
+                            )
+                        },
+                        onImageClick = { url -> fullScreenImageUrl = url }
+                    )
                     5 -> {
                         var isPublishing by remember { mutableStateOf(false) }
                         Step5Publish(
                                 state = draftState,
                                 isPublishing = isPublishing,
                                 onPublish = { isPublic ->
-                                    if (isPublishing) return@Step5Publish
-
-
                                     isPublishing = true
-                                    coroutineScope.launch {
-                                        try {
-                                            val uid = FirebaseManager.auth.currentUser?.uid ?: throw Exception("Not logged in")
-                                            val itemsList = draftState.concepts.map { concept ->
-                                                mapOf(
-                                                    "term" to concept.term,
-                                                    "definition" to concept.definition,
-                                                    "imageArt" to (concept.imageUrl ?: "")
-                                                )
-                                            }
-                                            val deckData = hashMapOf(
-                                                    "title" to draftState.title,
-                                                    "contentBase" to mapOf(
-                                                        "title" to draftState.title,
-                                                        "items" to itemsList
-                                                    ),
-                                                    "topic" to draftState.topic,
-                                                    "language" to "en",
-                                                    "authorId" to uid,
-                                                    "owner_id" to uid,
-                                                    "owner_email" to (FirebaseManager.auth.currentUser?.email ?: ""),
-                                                    "isPublic" to isPublic,
-                                                    "status" to if (isPublic) "pending" else "private",
-                                                    "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
-                                                    "items" to itemsList,
-                                                    "artDirection" to draftState.globalArtDirection,
-                                                    "artReferenceImage" to (draftState.globalArtImageUri ?: "")
-                                            )
-                                            val docRef = if (draftState.draftId != null) {
-                                                FirebaseManager.firestore.collection("FlashcardDecks").document(draftState.draftId!!)
-                                            } else {
-                                                FirebaseManager.firestore.collection("FlashcardDecks").document()
-                                            }
-                                            docRef.set(deckData).await()
-                                            navController.popBackStack()
-                                        } catch (e: Exception) {
-                                            errorMessage = "Publish Failed: ${e.message}"
-                                        } finally {
-                                            isPublishing = false
-                                        }
+                                    viewModel.publish(isPublic) {
+                                        isPublishing = false
+                                        navController.popBackStack()
                                     }
                                 }
                         )
@@ -306,7 +209,7 @@ fun CreateDeckScreen(
             ) {
                 if (draftState.step > 1) {
                     OutlinedButton(
-                            onClick = { draftState = draftState.copy(step = draftState.step - 1) },
+                            onClick = { viewModel.setStep(draftState.step - 1) },
                             modifier = Modifier.weight(1f).padding(end = 8.dp)
                     ) { Text("Back") }
                 } else {
@@ -317,77 +220,15 @@ fun CreateDeckScreen(
                     Button(
                             onClick = {
                                 if (draftState.step == 1) {
-                                    if (draftState.topic.isBlank()) {
-                                        errorMessage = "Please enter a topic."
-                                        return@Button
-                                    }
-                                    isLoading = true
-                                    errorMessage = null
-                                    coroutineScope.launch {
-                                        try {
-                                            if (FirebaseManager.auth.currentUser?.uid == null) {
-                                                return@launch
-                                            }
-
-                                            if (energyBolts < 1) {
-                                                navController.navigate("billing")
-                                                return@launch
-                                            }
-
-                                            val count = draftState.numberOfItems.toIntOrNull() ?: 5
-                                            val result =
-                                                    AILogic.generateTopic(draftState.topic, count)
-
-                                            // Deduct bolt
-                                            FirebaseManager.auth.currentUser?.uid?.let { currentUid ->
-                                                val userRef =
-                                                        FirebaseManager.firestore
-                                                                .collection("Users")
-                                                                .document(currentUid)
-                                                if (energyBolts >= 1) {
-                                                    userRef.update("energy_bolts", energyBolts - 1)
-                                                            .await()
-                                                } else {
-                                                    throw Exception("Insufficient bolts")
-                                                }
-                                            }
-
-                                            val newTitle =
-                                                    result["title"] as? String
-                                                            ?: "${draftState.topic} Essentials"
-                                            @Suppress("UNCHECKED_CAST")
-                                            val itemsList =
-                                                    result["items"] as? List<Map<String, String>>
-                                                            ?: emptyList()
-                                            val parsedConcepts =
-                                                    itemsList.map {
-                                                        ConceptDraft(
-                                                                it["term"] ?: "",
-                                                                it["definition"] ?: ""
-                                                        )
-                                                    }
-
-                                            draftState =
-                                                    draftState.copy(
-                                                            title = newTitle,
-                                                            concepts =
-                                                                    parsedConcepts.toMutableList(),
-                                                            step = 2
-                                                    )
-                                        } catch (e: Exception) {
-                                            errorMessage = "Failed to brainstorm: ${e.message}"
-                                        } finally {
-                                            isLoading = false
-                                        }
-                                    }
+                                    viewModel.brainstorm()
                                 } else {
-                                    draftState = draftState.copy(step = draftState.step + 1)
+                                    viewModel.setStep(draftState.step + 1)
                                 }
                             },
                             modifier = Modifier.weight(1f).padding(start = 8.dp),
-                            enabled = !isLoading
+                            enabled = !isViewModelLoading
                     ) {
-                        if (isLoading) {
+                        if (isViewModelLoading) {
                             CircularProgressIndicator(
                                     modifier = Modifier.size(20.dp),
                                     color = MaterialTheme.colorScheme.onPrimary
@@ -413,42 +254,74 @@ fun CreateDeckScreen(
 }
 
 @Composable
-fun Step1Topic(state: DraftState, onStateChange: (DraftState) -> Unit) {
+fun Step1Topic(
+    state: DraftState,
+    onTopicChange: (String) -> Unit,
+    onCountChange: (String) -> Unit
+) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-                "What do you want to learn?",
-                style = MaterialTheme.typography.titleLarge,
+                "What's the topic?",
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
         )
+        Text(
+                "Tell us what you want to learn, and we'll brainstorm the key concepts for you.",
+                style = MaterialTheme.typography.bodyMedium
+        )
+
         OutlinedTextField(
                 value = state.topic,
-                onValueChange = { onStateChange(state.copy(topic = it)) },
-                label = { Text("Subject (e.g., Solar System)") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                onValueChange = onTopicChange,
+                label = { Text("Topic (e.g. Spanish Basics, Anatomy)") },
+                modifier = Modifier.fillMaxWidth()
         )
-        OutlinedTextField(
-                value = state.numberOfItems,
-                onValueChange = { onStateChange(state.copy(numberOfItems = it)) },
-                label = { Text("Number of Items") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-        )
+
+        Text("Number of items", style = MaterialTheme.typography.bodyMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            val options = listOf("5", "10", "15", "20", "25", "50")
+            options.forEach { count ->
+                FilterChip(
+                        selected = state.numberOfItems == count,
+                        onClick = { onCountChange(count) },
+                        label = { Text(count) },
+                        modifier = Modifier.padding(horizontal = 2.dp)
+                )
+            }
+        }
     }
 }
 
 @Composable
-fun Step2Content(state: DraftState, onStateChange: (DraftState) -> Unit) {
+fun Step2Content(
+    state: DraftState,
+    onTitleChange: (String) -> Unit,
+    onConceptChange: (Int, String, String) -> Unit,
+    onDeleteItem: (Int) -> Unit,
+    onBrainstormMore: () -> Unit
+) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Refine Content",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Badge(containerColor = MaterialTheme.colorScheme.primaryContainer) {
+                Text("Items: ${state.concepts.size}", color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+            }
+        }
+
         OutlinedTextField(
                 value = state.title,
-                onValueChange = { onStateChange(state.copy(title = it)) },
+                onValueChange = onTitleChange,
                 label = { Text("Deck Title") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                modifier = Modifier.fillMaxWidth()
         )
-
-        Text("Proposed Flashcards (${state.concepts.size})", fontWeight = FontWeight.Bold)
 
         LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -456,85 +329,74 @@ fun Step2Content(state: DraftState, onStateChange: (DraftState) -> Unit) {
         ) {
             itemsIndexed(state.concepts) { index, concept ->
                 Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                    "Card ${index + 1}",
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(8.dp).padding(end = 40.dp)) {
+                            BasicTextField(
+                                    value = concept.term,
+                                    onValueChange = { onConceptChange(index, it, concept.definition) },
+                                    textStyle =
+                                            MaterialTheme.typography.bodyLarge.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                            ),
+                                    modifier = Modifier.fillMaxWidth()
+                            )
+                            HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = 4.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                            BasicTextField(
+                                    value = concept.definition,
+                                    onValueChange = { onConceptChange(index, concept.term, it) },
+                                    textStyle =
+                                            MaterialTheme.typography.bodyMedium.copy(
+                                                    color =
+                                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                            ),
+                                    modifier = Modifier.fillMaxWidth()
                             )
                         }
-                        OutlinedTextField(
-                                value = concept.term,
-                                onValueChange = { newTerm ->
-                                    val updated = state.concepts.toMutableList()
-                                    updated[index] = concept.copy(term = newTerm)
-                                    onStateChange(state.copy(concepts = updated))
-                                },
-                                label = { Text("Term") },
-                                modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                                value = concept.definition,
-                                onValueChange = { newDef ->
-                                    val updated = state.concepts.toMutableList()
-                                    updated[index] = concept.copy(definition = newDef)
-                                    onStateChange(state.copy(concepts = updated))
-                                },
-                                label = { Text("Definition") },
-                                modifier = Modifier.fillMaxWidth()
-                        )
+                        
+                        var showMenu by remember { mutableStateOf(false) }
+                        Box(modifier = Modifier.align(Alignment.TopEnd)) {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "More options",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Delete Item", color = MaterialTheme.colorScheme.error) },
+                                    onClick = {
+                                        showMenu = false
+                                        onDeleteItem(index)
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
             item {
-                var isBrainstormingMore by remember { mutableStateOf(false) }
-                val coroutineScope = rememberCoroutineScope()
-                OutlinedButton(
-                        onClick = {
-                            if (isBrainstormingMore) return@OutlinedButton
-                            isBrainstormingMore = true
-                            coroutineScope.launch {
-                                try {
-                                    val existingTerms =
-                                            state.concepts.joinToString(", ") { it.term }
-                                    val newItems =
-                                            AILogic.brainstormMore(state.topic, existingTerms)
-                                    val parsedNewConcepts =
-                                            newItems.map {
-                                                ConceptDraft(
-                                                        it["term"] ?: "",
-                                                        it["definition"] ?: ""
-                                                )
-                                            }
-                                    val updatedConcepts =
-                                            state.concepts.toMutableList().apply {
-                                                addAll(parsedNewConcepts)
-                                            }
-                                    onStateChange(state.copy(concepts = updatedConcepts))
-                                } catch (e: Exception) {
-                                    // Ignore or show toast
-                                } finally {
-                                    isBrainstormingMore = false
-                                }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        enabled = !isBrainstormingMore
+                TextButton(
+                        onClick = onBrainstormMore,
+                        modifier = Modifier.fillMaxWidth()
                 ) {
-                    if (isBrainstormingMore) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                    } else {
-                        Icon(Icons.Default.Add, contentDescription = "Add")
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Brainstorm More Items")
-                    }
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Brainstorm 5 more items")
                 }
             }
         }
@@ -542,21 +404,23 @@ fun Step2Content(state: DraftState, onStateChange: (DraftState) -> Unit) {
 }
 
 @Composable
-fun Step3ArtDirection(state: DraftState, onImageClick: (String) -> Unit, onStateChange: (DraftState) -> Unit) {
+fun Step3ArtDirection(
+    state: DraftState,
+    onArtDirectionChange: (String) -> Unit,
+    onArtImageChange: (String?) -> Unit,
+    onImageClick: (String) -> Unit
+) {
     val launcher =
-            androidx.activity.compose.rememberLauncherForActivityResult(
-                    contract =
-                            androidx.activity.result.contract.ActivityResultContracts.GetContent()
-            ) { uri: android.net.Uri? ->
-                if (uri != null) {
-                    onStateChange(state.copy(globalArtImageUri = uri.toString()))
-                }
+            rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.GetContent()
+            ) { uri: Uri? ->
+                onArtImageChange(uri?.toString())
             }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
                 "Global Art Direction",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
         )
         Text(
@@ -566,7 +430,7 @@ fun Step3ArtDirection(state: DraftState, onImageClick: (String) -> Unit, onState
 
         OutlinedTextField(
                 value = state.globalArtDirection,
-                onValueChange = { onStateChange(state.copy(globalArtDirection = it)) },
+                onValueChange = onArtDirectionChange,
                 label = { Text("Style Description (Optional)") },
                 modifier = Modifier.fillMaxWidth().height(120.dp),
                 maxLines = 5
@@ -594,17 +458,14 @@ fun Step3ArtDirection(state: DraftState, onImageClick: (String) -> Unit, onState
 
 @Composable
 fun Step4Images(
-    state: DraftState, 
-    energyBolts: Int, 
-    userProfile: com.firebaseailogic.memotattoo.ui.flashcards.UserProfile?, 
-    onNavigateToBilling: () -> Unit,
-    onImageClick: (String) -> Unit,
-    onStateChange: (DraftState) -> Unit
+    state: DraftState,
+    onGenerateImage: (Int) -> Unit,
+    onImageClick: (String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
                 "Flashcard Images",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
         )
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -633,104 +494,6 @@ fun Step4Images(
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             var showRedoDialog by remember { mutableStateOf(false) }
-                            val coroutineScope = rememberCoroutineScope()
-                            val context = androidx.compose.ui.platform.LocalContext.current
-
-                            val generateImage = {
-                                if (!concept.isGeneratingImage) {
-                                    val startConcepts = state.concepts.toMutableList()
-                                    startConcepts[index] = concept.copy(isGeneratingImage = true)
-                                    onStateChange(state.copy(concepts = startConcepts))
-                                    
-                                    coroutineScope.launch {
-                                            try {
-                                                val isPro = userProfile?.isPro == true
-                                                val generated = userProfile?.imagesGeneratedThisMonth ?: 0
-
-                                                if (isPro) {
-                                                    if (generated >= 100) {
-                                                        android.widget.Toast.makeText(
-                                                            context,
-                                                            "You have reached your 100 AI Images/mo limit.",
-                                                            android.widget.Toast.LENGTH_LONG
-                                                        ).show()
-                                                        return@launch
-                                                    }
-                                                    if (energyBolts < 1) {
-                                                        onNavigateToBilling()
-                                                        return@launch
-                                                    }
-                                                } else {
-                                                    if (energyBolts < 3) {
-                                                        onNavigateToBilling()
-                                                        return@launch
-                                                    }
-                                                }
-
-                                                var url =
-                                                        AILogic.generateConceptImage(
-                                                                title = state.title,
-                                                                term = concept.term,
-                                                                definition = concept.definition,
-                                                                artDirection =
-                                                                        state.globalArtDirection
-                                                        )
-
-                                                if (url.startsWith("data:image/jpeg;base64,")) {
-                                                    val b64 = url.substringAfter("base64,")
-                                                    val bytes =
-                                                            android.util.Base64.decode(
-                                                                    b64,
-                                                                    android.util.Base64.DEFAULT
-                                                            )
-                                                    val storageRef =
-                                                            FirebaseManager.storage.reference.child(
-                                                                    "drafts/${java.util.UUID.randomUUID()}.jpg"
-                                                            )
-                                                    storageRef.putBytes(bytes).await()
-                                                    url = storageRef.downloadUrl.await().toString()
-                                                }
-
-                                                // Deduct bolt
-                                                FirebaseManager.auth.currentUser?.uid?.let { uid ->
-                                                    val userRef =
-                                                            FirebaseManager.firestore
-                                                                    .collection("Users")
-                                                                    .document(uid)
-                                                                    
-                                                    val boltsToDeduct = if (isPro) 1 else 3
-                                                    if (energyBolts >= boltsToDeduct) {
-                                                        userRef.update(
-                                                            mapOf(
-                                                                "energy_bolts" to (energyBolts - boltsToDeduct),
-                                                                "imagesGeneratedThisMonth" to com.google.firebase.firestore.FieldValue.increment(1)
-                                                            )
-                                                        )
-                                                                .await()
-                                                    }
-                                                }
-
-                                                val updatedConcepts = state.concepts.toMutableList()
-                                                updatedConcepts[index] =
-                                                        updatedConcepts[index].copy(imageUrl = url)
-                                                onStateChange(
-                                                        state.copy(concepts = updatedConcepts)
-                                                )
-                                            } catch (e: Exception) {
-                                                // Show error
-                                                android.util.Log.e(
-                                                        "CreateDeckScreen",
-                                                        "Image generation failed",
-                                                        e
-                                                )
-                                            } finally {
-                                                val finalConcepts = state.concepts.toMutableList()
-                                                finalConcepts[index] = finalConcepts[index].copy(isGeneratingImage = false)
-                                                onStateChange(state.copy(concepts = finalConcepts))
-                                            }
-                                        }
-                                    }
-                                }
 
                             if (showRedoDialog) {
                                 AlertDialog(
@@ -740,7 +503,7 @@ fun Step4Images(
                                     confirmButton = {
                                         TextButton(onClick = {
                                             showRedoDialog = false
-                                            generateImage()
+                                            onGenerateImage(index)
                                         }) {
                                             Text("Continue", color = MaterialTheme.colorScheme.error)
                                         }
@@ -758,7 +521,7 @@ fun Step4Images(
                                         if (concept.imageUrl != null) {
                                             showRedoDialog = true
                                         } else {
-                                            generateImage()
+                                            onGenerateImage(index)
                                         }
                                     },
                                     enabled = !concept.isGeneratingImage
@@ -785,7 +548,7 @@ fun Step5Publish(state: DraftState, isPublishing: Boolean, onPublish: (Boolean) 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
                 "Ready to Publish",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
         )
 
@@ -832,7 +595,7 @@ fun Step5Publish(state: DraftState, isPublishing: Boolean, onPublish: (Boolean) 
             if (isPublishing) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
             } else {
-                Text("Publish to My Decks (Private)") 
+                Text("Publish as Private") 
             }
         }
 
@@ -841,6 +604,6 @@ fun Step5Publish(state: DraftState, isPublishing: Boolean, onPublish: (Boolean) 
                 onClick = { onPublish(true) },
                 enabled = !isPublishing && missingImages == 0,
                 modifier = Modifier.fillMaxWidth().height(56.dp)
-        ) { Text("Submit for Public Moderation") }
+        ) { Text("Submit for Moderation") }
     }
 }

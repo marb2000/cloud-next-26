@@ -15,6 +15,10 @@ interface FlashcardDeck {
   owner_email?: string;
   items?: any[];
   contentBase: any;
+  artDirection?: string;
+  artDirectionImage?: string;
+  owner_id?: string;
+  isPublic?: boolean;
 }
 
 @Component({
@@ -80,7 +84,7 @@ interface FlashcardDeck {
                       [ngClass]="{
                         'bg-yellow-500/90 text-yellow-950 border border-yellow-500': deck.status === 'draft',
                         'bg-emerald-500/90 text-emerald-950 border border-emerald-500': deck.status === 'published',
-                        'bg-slate-500/90 text-slate-100 border border-slate-500': deck.status === 'unpublished',
+                        'bg-indigo-500/90 text-indigo-100 border border-indigo-500': deck.status === 'private',
                         'bg-red-500/90 text-red-950 border border-red-500': deck.status === 'locked'
                       }">
                   {{ (deck.status || 'draft') | uppercase }}
@@ -105,8 +109,8 @@ interface FlashcardDeck {
                             [class.bg-emerald-500]="deck.status === 'published'" [class.text-white]="deck.status === 'published'" [class.text-slate-400]="deck.status !== 'published'"
                             (click)="executeStatusUpdate(deck.id, 'published')">Pub</button>
                     <button class="flex-1 py-1.5 text-xs font-semibold rounded transition-colors"
-                            [class.bg-slate-700]="deck.status === 'unpublished'" [class.text-white]="deck.status === 'unpublished'" [class.text-slate-400]="deck.status !== 'unpublished'"
-                            (click)="executeStatusUpdate(deck.id, 'unpublished')">Unpub</button>
+                            [class.bg-indigo-600]="deck.status === 'private'" [class.text-white]="deck.status === 'private'" [class.text-slate-400]="deck.status !== 'private'"
+                            (click)="executeStatusUpdate(deck.id, 'private')">Private</button>
                     <button class="flex-1 py-1.5 text-xs font-semibold rounded transition-colors text-red-400 hover:text-red-300"
                             (click)="executeStatusUpdate(deck.id, 'locked')">Lock</button>
                   </div>
@@ -254,7 +258,11 @@ export class FlashcardLibrary implements OnInit {
           previewImages: previewImages,
           publishedAt: d['publishedAt'],
           status: d['status'] || 'draft',
-          contentBase: d['contentBase'] || { items }
+          contentBase: d['contentBase'] || { items },
+          artDirection: d['artDirection'],
+          artDirectionImage: d['artDirectionImage'],
+          owner_id: d['owner_id'],
+          isPublic: d['isPublic'] !== undefined ? d['isPublic'] : (d['status'] === 'published')
         });
       });
       data.sort((a, b) => {
@@ -272,8 +280,12 @@ export class FlashcardLibrary implements OnInit {
 
   async executeStatusUpdate(id: string, newStatus: string) {
     try {
-      await updateDoc(doc(firestore, 'FlashcardDecks', id), { status: newStatus });
-      this.logger.info('Status Updated', `Changed library deck ${id} status to ${newStatus}`);
+      const isPublic = newStatus === 'published';
+      await updateDoc(doc(firestore, 'FlashcardDecks', id), { 
+        status: newStatus,
+        isPublic: isPublic
+      });
+      this.logger.info('Status Updated', `Changed library deck ${id} status to ${newStatus} (isPublic: ${isPublic})`);
     } catch (e: any) {
       this.logger.error('Status Update Failed', `Failed to update deck ${id} status to ${newStatus}`, e);
       alert("Status update failed: " + e.message);
@@ -365,7 +377,12 @@ export class FlashcardLibrary implements OnInit {
       isEditingExisting: true,
       formValue: { topic: deck.topic || editableJsonObj.title, numConcepts: items.length || 5 },
       editableJson: JSON.stringify(editableJsonObj, null, 2),
-      artDirection: '',
+      artDirection: deck.artDirection || '',
+      artDirectionImage: deck.artDirectionImage || null,
+      originalStatus: deck.status || 'draft',
+      originalIsPublic: deck.isPublic ?? false,
+      originalOwnerId: deck.owner_id || '',
+      originalOwnerEmail: deck.owner_email || '',
       conceptDrafts: drafts
     };
 

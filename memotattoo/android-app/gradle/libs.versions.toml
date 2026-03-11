@@ -14,6 +14,10 @@ firebaseBom = "33.7.0"
 navigationCompose = "2.8.5"
 coilCompose = "2.6.0"
 googleServices = "4.4.2"
+mockk = "1.13.12"
+coroutinesTest = "1.8.1"
+playServicesTasks = "18.1.0"
+kotlin-reflect = { ref = "kotlin" }
 
 # This is where you declare your dependencies. Each library has a name, its group and name, and a reference to its version.
 # Gradle uses this to generate type-safe accessors, giving you autocompletion and compile-time safety in your build scripts.
@@ -43,6 +47,13 @@ firebase-appcheck = { group = "com.google.firebase", name = "firebase-appcheck-p
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version = "1.6.3" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coilCompose" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }
+mockk-agent-android = { group = "io.mockk", name = "mockk-agent-android", version.ref = "mockk" }
+kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
+kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutinesTest" }
+play-services-tasks = { group = "com.google.android.gms", name = "play-services-tasks", version.ref = "playServicesTasks" }
 
 # This section is similar to [libraries] but for Gradle plugins.
 # Pluggins are tools that add functionality to Gradle.At build time only, not included in your app

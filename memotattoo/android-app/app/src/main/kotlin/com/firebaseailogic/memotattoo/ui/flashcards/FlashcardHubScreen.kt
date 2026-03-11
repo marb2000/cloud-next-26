@@ -13,40 +13,51 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import androidx.navigation.NavController
 import com.firebaseailogic.memotattoo.data.FirebaseManager
 import com.firebaseailogic.memotattoo.ui.theme.MemoGradientBrush
 import com.firebaseailogic.memotattoo.ui.theme.Shapes
 import kotlinx.coroutines.tasks.await
 
-data class FlashcardDeckSummary(
-        val id: String,
-        val title: String,
-        val description: String,
-        val type: String, // "New", "Grammar", "Review", "FlashcardDeck"
-        val isCompleted: Boolean = false,
-        val status: String = "published", // e.g. "draft", "pending", "published"
-        val isPublic: Boolean = false,
-        val ownerId: String = "",
-        val bestScore: Int = 0
-)
+// FlashcardDeckSummary moved to FlashcardModels.kt
 
 @Composable
 fun FlashcardHubScreen(
         navController: NavController,
         userProfileViewModel: com.firebaseailogic.memotattoo.ui.flashcards.UserProfileViewModel =
-                androidx.lifecycle.viewmodel.compose.viewModel()
+                androidx.lifecycle.viewmodel.compose.viewModel(),
+        flashcardHubViewModel: com.firebaseailogic.memotattoo.ui.flashcards.FlashcardHubViewModel =
+                androidx.lifecycle.viewmodel.compose.viewModel(),
+        currentUid: String = FirebaseManager.auth.currentUser?.uid ?: ""
 ) {
-    var myDecks by remember { mutableStateOf<List<FlashcardDeckSummary>>(emptyList()) }
-    var publicDecks by remember { mutableStateOf<List<FlashcardDeckSummary>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+    val myDecks by flashcardHubViewModel.myDecks.collectAsState()
+    val publicDecks by flashcardHubViewModel.publicDecks.collectAsState()
+    val isLoading by flashcardHubViewModel.isLoading.collectAsState()
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     var deckToDelete by remember { mutableStateOf<FlashcardDeckSummary?>(null) }
+    var deckForMenu by remember { mutableStateOf<FlashcardDeckSummary?>(null) }
+    
+    @OptIn(ExperimentalMaterial3Api::class)
+    val sheetState = rememberModalBottomSheetState()
+
+    fun publishDeck(deck: FlashcardDeckSummary) {
+        flashcardHubViewModel.publishDeck(deck)
+    }
+
+    fun unpublishDeck(deck: FlashcardDeckSummary) {
+        flashcardHubViewModel.unpublishDeck(deck)
+    }
     
     // Add delete dialog
     if (deckToDelete != null) {
@@ -60,13 +71,7 @@ fun FlashcardHubScreen(
                         val deckId = deckToDelete?.id
                         deckToDelete = null
                         if (deckId != null) {
-                            FirebaseManager.firestore
-                                .collection("FlashcardDecks")
-                                .document(deckId)
-                                .delete()
-                                .addOnSuccessListener {
-                                    myDecks = myDecks.filter { it.id != deckId }
-                                }
+                            flashcardHubViewModel.deleteDeck(deckId)
                         }
                     }
                 ) {
@@ -84,48 +89,7 @@ fun FlashcardHubScreen(
     val userProfile by userProfileViewModel.userProfile.collectAsState()
     val energyBolts = userProfile?.energyBolts ?: 0
 
-    val currentUid = FirebaseManager.auth.currentUser?.uid ?: ""
-
-    LaunchedEffect(Unit) {
-        try {
-            val userScoresRef =
-                    FirebaseManager.firestore
-                            .collection("Users")
-                            .document(currentUid)
-                            .collection("User_Scores")
-            val scoresSnap = userScoresRef.get().await()
-            val scoreMap =
-                    scoresSnap.documents.associate {
-                        it.id to (it.getLong("bestScore")?.toInt() ?: 0)
-                    }
-
-            val snapshot = FirebaseManager.firestore.collection("FlashcardDecks").get().await()
-            val loadedDecks =
-                    snapshot.documents.map { doc ->
-                        @Suppress("UNCHECKED_CAST")
-                        val contentBase = doc.get("contentBase") as? Map<String, Any>
-                        FlashcardDeckSummary(
-                                id = doc.id,
-                                title = contentBase?.get("title") as? String ?: "Unknown Deck",
-                                description = doc.getString("topic") ?: "Custom flashcard deck.",
-                                type = "FlashcardDeck",
-                                status = doc.getString("status") ?: "draft",
-                                isPublic = doc.getBoolean("isPublic")
-                                                ?: (doc.getString("status") == "published"),
-                                ownerId = doc.getString("owner_id") ?: "",
-                                bestScore = scoreMap[doc.id] ?: 0
-                        )
-                    }
-            val allDecks = loadedDecks
-
-            myDecks = allDecks.filter { it.ownerId == currentUid && !it.isPublic }
-            publicDecks = allDecks.filter { it.isPublic }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        } finally {
-            isLoading = false
-        }
-    }
+    // Data loading logic moved to FlashcardHubViewModel
 
     Scaffold(
             floatingActionButton = {
@@ -210,138 +174,216 @@ fun FlashcardHubScreen(
                 ) {
                     items(currentList) { deck ->
                         DeckCard(
-                                deck = deck,
-                                onClick = { navController.navigate("challenge/${deck.id}") },
-                                onEdit = { navController.navigate("create_deck?draftId=${deck.id}") },
-                                onDelete = { deckToDelete = deck },
-                                onMakePublic = {
-                                    // Update Firestore document to enter the moderation queue
-                                    FirebaseManager.firestore
-                                            .collection("FlashcardDecks")
-                                            .document(deck.id)
-                                            .update(mapOf("status" to "pending"))
-                                            .addOnSuccessListener {
-                                                // Optimistically update the local list
-                                                myDecks =
-                                                        myDecks.map {
-                                                            if (it.id == deck.id)
-                                                                    it.copy(status = "pending")
-                                                            else it
-                                                        }
-                                            }
-                                }
+                            deck = deck,
+                            currentUid = currentUid,
+                            onClick = { navController.navigate("challenge/${deck.id}") },
+                            onEdit = { navController.navigate("create_deck?draftId=${deck.id}") },
+                            onMenuOpen = { deckForMenu = deck }
                         )
                     }
                 }
             }
         }
     }
+
+    if (deckForMenu != null) {
+        val deck = deckForMenu!!
+        val isOwner = deck.ownerId == currentUid
+        
+        @OptIn(ExperimentalMaterial3Api::class)
+        ModalBottomSheet(
+            onDismissRequest = { deckForMenu = null },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .padding(bottom = 32.dp)
+            ) {
+                Text(
+                    text = deck.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                
+                if (isOwner) {
+                    ListItem(
+                        headlineContent = { Text("Edit Flashcards") },
+                        leadingContent = { Icon(Icons.Default.Person, contentDescription = null) },
+                        modifier = Modifier
+                            .testTag("Action_Edit")
+                            .clickable {
+                                deckForMenu = null
+                                navController.navigate("create_deck?draftId=${deck.id}")
+                            }
+                    )
+                    
+                    if (deck.isPublic) {
+                        ListItem(
+                            headlineContent = { Text("Unpublish (Make Private)") },
+                            leadingContent = { Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.alpha(0.5f)) },
+                            modifier = Modifier
+                                .testTag("Action_Unpublish")
+                                .clickable {
+                                    deckForMenu = null
+                                    unpublishDeck(deck)
+                                }
+                        )
+                    } else if (deck.status != "pending") {
+                        ListItem(
+                            headlineContent = { Text("Publish to Global Library") },
+                            leadingContent = { Icon(Icons.Default.Person, contentDescription = null) },
+                            modifier = Modifier
+                                .testTag("Action_Publish")
+                                .clickable {
+                                    deckForMenu = null
+                                    publishDeck(deck)
+                                }
+                        )
+                    }
+                    
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    
+                    ListItem(
+                        headlineContent = { Text("Delete Deck", color = MaterialTheme.colorScheme.error) },
+                        leadingContent = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                        modifier = Modifier
+                            .testTag("Action_Delete")
+                            .clickable {
+                                deckForMenu = null
+                                deckToDelete = deck
+                            }
+                    )
+                }
+            }
+        }
+    }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun DeckCard(deck: FlashcardDeckSummary, onClick: () -> Unit, onEdit: () -> Unit, onDelete: (() -> Unit)? = null, onMakePublic: () -> Unit) {
+fun DeckCard(
+    deck: FlashcardDeckSummary,
+    currentUid: String,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onMenuOpen: () -> Unit
+) {
+    val isOwner = deck.ownerId == currentUid
+
     Surface(
             modifier =
                     Modifier.fillMaxWidth()
+                            .testTag("DeckCard_${deck.id}")
                             .clip(Shapes.large)
-                            .clickable(
+                            .padding(horizontal = 4.dp)
+                            .combinedClickable(
                                 enabled = deck.status != "pending",
-                                onClick = onClick
+                                onClick = {
+                                    if (deck.status == "draft") onEdit() else onClick()
+                                },
+                                onLongClick = onMenuOpen
                             ),
             color = MaterialTheme.colorScheme.surfaceVariant,
             shape = Shapes.large,
-            shadowElevation = 4.dp
+            shadowElevation = 2.dp
     ) {
-        Column {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                                text = deck.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Text(
+                        text = deck.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2
+                    )
+                    
+                    Row(
+                        modifier = Modifier.padding(top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         if (deck.isPublic) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Badge(containerColor = MaterialTheme.colorScheme.tertiary) {
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.testTag("Badge_Public")
+                            ) {
                                 Text("Public", color = MaterialTheme.colorScheme.onTertiary)
                             }
                         } else if (deck.status == "pending") {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Badge(containerColor = MaterialTheme.colorScheme.secondary) {
-                                Text("In Review", color = MaterialTheme.colorScheme.onSecondary)
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.testTag("Badge_Moderating")
+                            ) {
+                                Text("Moderating", color = MaterialTheme.colorScheme.onSecondary)
+                            }
+                        } else if (deck.status == "draft") {
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                modifier = Modifier.testTag("Badge_Draft")
+                            ) {
+                                Text("Draft", color = MaterialTheme.colorScheme.onSurface)
                             }
                         } else {
-                            Spacer(modifier = Modifier.width(8.dp))
                             Badge(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.testTag("Badge_Private")
                             ) {
                                 Text("Private", color = MaterialTheme.colorScheme.onPrimaryContainer)
                             }
                         }
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                            text = deck.description,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                    )
-                    if (deck.bestScore > 0) {
-                        Text(
-                                text = "Best Score: ${deck.bestScore}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(top = 4.dp)
-                        )
+                        
+                        if (deck.bestScore > 0) {
+                            Text(
+                                    text = "Score: ${deck.bestScore}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
-                
-                // Optional Delete Action
-                if (onDelete != null && deck.status != "pending" && !deck.isPublic) {
-                    IconButton(onClick = onDelete) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Delete Deck",
-                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
-                        )
-                    }
-                }
-                // Simple indicator
-                Box(
-                        modifier =
-                                Modifier.size(40.dp)
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(
-                                                MaterialTheme.colorScheme.primary.copy(
-                                                    alpha = if (deck.status == "pending") 0.05f else 0.1f
-                                                )
-                                        ),
-                        contentAlignment = Alignment.Center
-                ) { Text(
-                        text = "▶", 
-                        color = MaterialTheme.colorScheme.primary.copy(
-                            alpha = if (deck.status == "pending") 0.3f else 1f
-                        )
-                    ) 
-                }
-            }
-            // Add Mod actions for decks the user owns that aren't public yet
-            if (!deck.isPublic && deck.status != "pending" && deck.type == "FlashcardDeck"
-            ) {
-                HorizontalDivider(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
-                )
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    TextButton(onClick = { onEdit() }, modifier = Modifier.weight(1f)) {
-                        Text(if (deck.status == "draft") "Continue Draft" else "Edit Deck", color = MaterialTheme.colorScheme.primary)
-                    }
-                    if (deck.status != "draft") {
-                        TextButton(onClick = { onMakePublic() }, modifier = Modifier.weight(1f)) {
-                            Text("Publish", color = MaterialTheme.colorScheme.primary)
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (deck.status == "pending") {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    } else {
+                        if (isOwner) {
+                            IconButton(onClick = onMenuOpen) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "Menu")
+                            }
+                        }
+                        
+                        if (deck.status != "draft") {
+                            Surface(
+                                shape = androidx.compose.foundation.shape.CircleShape,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .testTag("PlayButton")
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = "Play",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp).alpha(0.3f),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                 }
