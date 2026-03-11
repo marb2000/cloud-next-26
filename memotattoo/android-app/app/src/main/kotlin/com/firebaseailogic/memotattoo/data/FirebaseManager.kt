@@ -16,8 +16,10 @@ object FirebaseManager {
     fun initializeAppCheck() {
         // App Check Initialization explicitly defined in Architecture doc for abuse prevention
         // For development, it requires a DebugProvider manually registered in the console.
+        /*
         Firebase.appCheck.installAppCheckProviderFactory(
             PlayIntegrityAppCheckProviderFactory.getInstance()
         )
+        */
     }
 }

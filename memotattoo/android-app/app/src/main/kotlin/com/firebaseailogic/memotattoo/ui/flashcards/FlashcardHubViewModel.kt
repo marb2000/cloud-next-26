@@ -11,13 +11,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+import com.firebaseailogic.memotattoo.data.FlashcardRepository
+import com.firebaseailogic.memotattoo.data.IFlashcardRepository
+import kotlinx.coroutines.flow.combine
+
 class FlashcardHubViewModel(
     private val auth: FirebaseAuth = FirebaseManager.auth,
-    private val firestore: FirebaseFirestore = FirebaseManager.firestore
+    private val repository: IFlashcardRepository = FlashcardRepository()
 ) : ViewModel() {
     
-    private var decksListener: com.google.firebase.firestore.ListenerRegistration? = null
-
     private val _myDecks = MutableStateFlow<List<FlashcardDeckSummary>>(emptyList())
     val myDecks: StateFlow<List<FlashcardDeckSummary>> = _myDecks.asStateFlow()
 
@@ -32,79 +34,49 @@ class FlashcardHubViewModel(
     }
 
     private fun startListeningForDecks() {
-        val currentUid = auth.currentUser?.uid ?: return
-        _isLoading.value = true
+        val currentUid = auth.currentUser?.uid ?: ""
         
-        decksListener = firestore.collection("FlashcardDecks")
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    error.printStackTrace()
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                // Combine my decks and public decks with their scores
+                combine(
+                    repository.getMyDecks(currentUid),
+                    repository.getPublicDecks()
+                ) { myDecks, publicDecks ->
+                    val scores = repository.getBestScores(currentUid)
+                    
+                    val myWithScores = myDecks.map { it.copy(bestScore = scores[it.id] ?: 0) }
+                    val publicWithScores = publicDecks.map { it.copy(bestScore = scores[it.id] ?: 0) }
+                    
+                    Pair(myWithScores, publicWithScores)
+                }.collect { (my, public) ->
+                    _myDecks.value = my.filter { !it.isPublic }
+                    _publicDecks.value = public
                     _isLoading.value = false
-                    return@addSnapshotListener
                 }
-                
-                if (snapshot != null) {
-                    viewModelScope.launch {
-                        try {
-                            // Still need scores, but can be done once or also listened to.
-                            // For now, let's keep score fetch as is but inside the listener or separate.
-                            // Optimized: fetch scores once and associate.
-                            val userScoresRef = firestore
-                                .collection("Users")
-                                .document(currentUid)
-                                .collection("User_Scores")
-                            val scoresSnap = userScoresRef.get().await()
-                            val scoreMap = scoresSnap.documents.associate {
-                                it.id to (it.getLong("bestScore")?.toInt() ?: 0)
-                            }
-
-                            val loadedDecks = snapshot.documents.map { doc ->
-                                @Suppress("UNCHECKED_CAST")
-                                val contentBase = doc.get("contentBase") as? Map<String, Any>
-                                FlashcardDeckSummary(
-                                    id = doc.id,
-                                    title = contentBase?.get("title") as? String ?: "Unknown Deck",
-                                    description = doc.getString("topic") ?: "Custom flashcard deck.",
-                                    type = "FlashcardDeck",
-                                    status = doc.getString("status") ?: "draft",
-                                    isPublic = doc.getBoolean("isPublic") ?: (doc.getString("status") == "published"),
-                                    ownerId = doc.getString("owner_id") ?: "",
-                                    bestScore = scoreMap[doc.id] ?: 0
-                                )
-                            }
-
-                            _myDecks.value = loadedDecks.filter { it.ownerId == currentUid && !it.isPublic }
-                            _publicDecks.value = loadedDecks.filter { it.isPublic }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        } finally {
-                            _isLoading.value = false
-                        }
-                    }
-                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _isLoading.value = false
             }
+        }
     }
 
     fun publishDeck(deck: FlashcardDeckSummary) {
-        firestore.collection("FlashcardDecks")
-            .document(deck.id)
-            .update(mapOf("status" to "published", "isPublic" to true))
+        viewModelScope.launch {
+            repository.updateDeckStatus(deck.id, "published", true)
+        }
     }
 
     fun unpublishDeck(deck: FlashcardDeckSummary) {
-        firestore.collection("FlashcardDecks")
-            .document(deck.id)
-            .update(mapOf("status" to "private", "isPublic" to false))
+        viewModelScope.launch {
+            repository.updateDeckStatus(deck.id, "private", false)
+        }
     }
 
     fun deleteDeck(deckId: String) {
-        firestore.collection("FlashcardDecks")
-            .document(deckId)
-            .delete()
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        decksListener?.remove()
+        viewModelScope.launch {
+            repository.deleteDeck(deckId)
+        }
     }
 }

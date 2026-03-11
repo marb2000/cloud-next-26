@@ -14,9 +14,19 @@ import org.json.JSONObject
 
 @OptIn(PublicPreviewAPI::class)
 interface IAILogic {
-    suspend fun generateTopic(topic: String, numConcepts: Int): Map<String, Any>
-    suspend fun brainstormMore(topic: String, currentConcepts: List<ConceptDraft>, numConcepts: Int): List<ConceptDraft>
-    suspend fun generateConceptImage(title: String, term: String, definition: String, artDirection: String?): String
+        suspend fun generateTopic(topic: String, numConcepts: Int): Map<String, Any>
+        suspend fun brainstormMore(
+                topic: String,
+                currentConcepts: List<ConceptDraft>,
+                numConcepts: Int
+        ): List<ConceptDraft>
+        suspend fun generateConceptImage(
+                title: String,
+                term: String,
+                definition: String,
+                artDirection: String?
+        ): String
+        fun startGameSession(deckTitle: String): com.google.firebase.ai.Chat?
 }
 
 @OptIn(PublicPreviewAPI::class)
@@ -27,11 +37,16 @@ object AILogic : IAILogic {
 
         @OptIn(PublicPreviewAPI::class)
         override suspend fun generateTopic(topic: String, numConcepts: Int): Map<String, Any> {
+                android.util.Log.d(
+                        "AILogic",
+                        "AILogic.generateTopic started for topic=$topic, numConcepts=$numConcepts"
+                )
                 val response =
                         templateModel.generateContent(
                                 "memotattoo-generatate-topic-v1",
                                 mapOf("topic" to topic, "numConcepts" to numConcepts)
                         )
+                android.util.Log.d("AILogic", "templateModel.generateContent response received")
                 val text =
                         response.text?.trim()?.removePrefix("```json")?.removeSuffix("```")?.trim()
                                 ?: throw Exception("Failed to generate content")
@@ -65,9 +80,9 @@ object AILogic : IAILogic {
                         templateModel.generateContent(
                                 "memotattoo-brainstorm-more-v1",
                                 mapOf(
-                                    "topic" to topic,
-                                    "existing_terms" to existingTerms,
-                                    "numConcepts" to numConcepts
+                                        "topic" to topic,
+                                        "existing_terms" to existingTerms,
+                                        "numConcepts" to numConcepts
                                 )
                         )
                 val text =
@@ -100,17 +115,21 @@ object AILogic : IAILogic {
                         mutableMapOf<String, Any>(
                                 "title" to title,
                                 "term" to term,
-                                "definition" to definition
+                                "definition" to definition,
+                                "art_direction" to (artDirection ?: "None"),
+                                "resolution" to "2K"
                         )
-                if (!artDirection.isNullOrBlank()) {
-                        inputs["art_direction"] = artDirection
-                }
 
+                android.util.Log.d(
+                        "AILogic",
+                        "AILogic.generateConceptImage started for ${term} with artDirection=$artDirection"
+                )
                 val response =
                         templateModel.generateContent(
                                 "memotattoo-generate-concept-image-v1",
                                 inputs
                         )
+                android.util.Log.d("AILogic", "Image template response received")
 
                 // The gemini-3.1-flash-image-preview model typically returns the image as an
                 // inlineData blob
@@ -147,7 +166,7 @@ object AILogic : IAILogic {
                 )
         }
 
-        fun startGameSession(deckTitle: String): Chat {
+        override fun startGameSession(deckTitle: String): com.google.firebase.ai.Chat? {
                 val gameMasterModel =
                         Firebase.ai.generativeModel(
                                 modelName = "gemini-2.5-flash",

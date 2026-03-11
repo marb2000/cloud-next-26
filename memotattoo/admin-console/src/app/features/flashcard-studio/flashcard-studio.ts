@@ -1,15 +1,15 @@
 import { Component, signal, OnInit, effect, inject } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators, FormsModule, FormGroup } from '@angular/forms';
-import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { ref, uploadString, getDownloadURL } from 'firebase/storage';
-import { firestore, templateModel, storage, ai } from '../../core/firebase/firebase';
-import { getGenerativeModel } from 'firebase/ai';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { ActivityLogService } from '../../core/services/activity-log.service';
 import { UserService } from '../../core/auth/user.service';
-import { Observable } from 'rxjs';
+import { Observable } from 'rxjs'; 
+import { FlashcardService } from '../../core/services/flashcard.service';
+import { AILogicService } from '../../core/services/ai-logic.service';
+import { BucketService } from '../../core/services/bucket.service';
+import { firestore } from '../../core/firebase/firebase';
 
 const DRAFT_STORAGE_KEY = 'memotattoo_flashcard_draft';
 
@@ -73,7 +73,10 @@ export class FlashcardStudio implements OnInit {
   private router = inject(Router);
   private logger = inject(ActivityLogService);
   public userService = inject(UserService);
-  private fb = inject(FormBuilder); // Inject FormBuilder as well
+  private flashcardService = inject(FlashcardService);
+  private aiLogicService = inject(AILogicService);
+  private bucketService = inject(BucketService);
+  private fb = inject(FormBuilder); 
 
   constructor() {
     this.topicForm = this.fb.group({
@@ -160,17 +163,15 @@ export class FlashcardStudio implements OnInit {
     }
 
     try {
-      if (currentId) {
-        await updateDoc(doc(firestore, 'FlashcardDecks', currentId), payload);
-      } else {
-        const docRef = await addDoc(collection(firestore, 'FlashcardDecks'), payload);
-        this.activeDraftId.set(docRef.id);
+      const docId = await this.flashcardService.saveDeck(currentId, this.sanitizePayload(payload));
+      if (!currentId) {
+        this.activeDraftId.set(docId);
 
         // Re-cache locally so we don't accidentally create duplicates on refresh
         const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
         if (raw) {
           const draftData = JSON.parse(raw);
-          draftData.activeDraftId = docRef.id;
+          draftData.activeDraftId = docId;
           localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData));
         }
       }
@@ -200,7 +201,14 @@ export class FlashcardStudio implements OnInit {
           } catch (e) { /* ignore parse error on load */ }
         }
 
-        this.conceptDrafts.set(draftData.conceptDrafts || []);
+        const draftDrafts = draftData.conceptDrafts || [];
+        // Migration: fix selectedIndex if it's -1 but images exist
+        draftDrafts.forEach((c: any) => {
+          if ((c.selectedIndex === -1 || c.selectedIndex === undefined) && c.images && c.images.length > 0) {
+            c.selectedIndex = 0;
+          }
+        });
+        this.conceptDrafts.set(draftDrafts);
         if (draftData.activeDraftId) {
           this.activeDraftId.set(draftData.activeDraftId);
         }
@@ -231,7 +239,7 @@ export class FlashcardStudio implements OnInit {
 
     if (draftId) {
       try {
-        await deleteDoc(doc(firestore, 'FlashcardDecks', draftId));
+        await this.flashcardService.deleteDeck(draftId);
         this.logger.info('Deleted Draft', `Permanently deleted transient draft ID: ${draftId}`);
       } catch (e) {
         console.error("Failed to delete draft from Firestore", e);
@@ -373,45 +381,36 @@ export class FlashcardStudio implements OnInit {
 
   // --- Core Generation Logic ---
 
-  async generateTopicContent() {
+  async brainstormTopic() {
     if (this.topicForm.invalid) return;
     this.isGeneratingContent.set(true);
 
     const inputs = this.topicForm.value;
     try {
       this.logger.info('Started Brainstorming', `Requesting concepts for topic: ${inputs.topic}`);
-      const result = await templateModel.generateContent('memotattoo-generatate-topic-v1', inputs);
-      const text = await result.response.text();
-
-      // Attempt to safely parse the returned JSON string from Gemini
-      try {
-        const jsonResponse = JSON.parse(text.replace(/^```json\n|\n```$/g, ''));
-        this.editableJson = JSON.stringify(jsonResponse, null, 2);
-        this.generatedContent.set(jsonResponse);
-        if (jsonResponse.items && Array.isArray(jsonResponse.items)) {
-          this.visualItems.set(jsonResponse.items);
-        }
-
-        // Setup empty concept drafts for UI masking
-        this.conceptDrafts.set(jsonResponse.items.map((i: any) => ({
-          term: i.term,
-          definition: i.definition,
-          images: [],
-          selectedIndex: 0,
-          refinePrompt: '',
-          isGenerating: false
-        })));
-        this.saveDraft();
-        this.logger.success('Brainstorm Complete', `Generated ${this.topicForm.value.numConcepts} concepts for ${this.topicForm.value?.topic}`);
-        this.showToast("Topic breakdown generated successfully!", 'success');
-      } catch (e: any) {
-        console.error("Parse error:", e);
-        this.showToast("Failed to parse AI output. Try again.", 'error');
-        this.logger.error('Brainstorm Parse Error', 'Could not parse JSON output from AI', e);
+      const jsonResponse = await this.aiLogicService.brainstormTopic(inputs.topic || '', inputs.numConcepts || 5);
+      
+      this.editableJson = JSON.stringify(jsonResponse, null, 2);
+      this.generatedContent.set(jsonResponse);
+      if (jsonResponse.items && Array.isArray(jsonResponse.items)) {
+        this.visualItems.set(jsonResponse.items);
       }
+
+      // Setup empty concept drafts for UI masking
+      this.conceptDrafts.set(jsonResponse.items.map((i: any) => ({
+        term: i.term,
+        definition: i.definition,
+        images: [],
+        selectedIndex: 0,
+        refinePrompt: '',
+        isGenerating: false
+      })));
+      this.saveDraft();
+      this.logger.success('Brainstorm Complete', `Generated ${this.topicForm.value.numConcepts} concepts for ${this.topicForm.value?.topic}`);
+      this.showToast("Topic breakdown generated successfully!", 'success');
     } catch (e: any) {
       console.error(e);
-      this.showToast("AI Request Failed: " + e.message, 'error');
+      this.showToast("Brainstorm Failed: " + e.message, 'error');
       this.logger.error('Brainstorm Failed', 'AI Generation request failed', e);
     } finally {
       this.isGeneratingContent.set(false);
@@ -426,62 +425,46 @@ export class FlashcardStudio implements OnInit {
 
       this.logger.info('Started Brainstorming More', `Requesting additional concepts for topic: ${topic}`);
 
-      const result = await templateModel.generateContent('memotattoo-brainstorm-more-v1', {
-        topic: topic,
-        existing_terms: existingTerms
-      });
+      const jsonResponse = await this.aiLogicService.brainstormMore(topic, existingTerms);
 
-      const text = await result.response.text();
+      if (jsonResponse.length > 0) {
+        // Append to visual items
+        this.visualItems.update(items => [...items, ...jsonResponse]);
 
-      try {
-        const jsonResponse = JSON.parse(text.replace(/^```json\n|\n```$/g, ''));
-        if (Array.isArray(jsonResponse)) {
-          // Append to visual items
-          this.visualItems.update(items => [...items, ...jsonResponse]);
+        // Append to concept drafts
+        this.conceptDrafts.update(drafts => [
+          ...drafts,
+          ...jsonResponse.map(i => ({
+            term: i.term,
+            definition: i.definition,
+            images: [],
+            selectedIndex: 0,
+            refinePrompt: '',
+            isGenerating: false
+          }))
+        ]);
 
-          // Append to concept drafts
-          this.conceptDrafts.update(drafts => [
-            ...drafts,
-            ...jsonResponse.map(i => ({
-              term: i.term,
-              definition: i.definition,
-              images: [],
-              selectedIndex: 0,
-              refinePrompt: '',
-              isGenerating: false
-            }))
-          ]);
+        // Update raw JSON
+        try {
+          const currentJson = JSON.parse(this.editableJson);
+          currentJson.items = this.visualItems();
+          this.editableJson = JSON.stringify(currentJson, null, 2);
+        } catch (e) { /* ignore */ }
 
-          // Update raw JSON
-          try {
-            const currentJson = JSON.parse(this.editableJson);
-            currentJson.items = this.visualItems();
-            this.editableJson = JSON.stringify(currentJson, null, 2);
-          } catch (e) { /* ignore */ }
-
-          this.saveDraft();
-          this.showToast(`Added ${jsonResponse.length} more concepts!`, 'success');
-          this.logger.success('Brainstorm Complete', `Appended ${jsonResponse.length} new items to the deck.`);
-        }
-      } catch (e: any) {
-        console.error("Parse error:", e);
-        this.showToast("Failed to parse the new concepts. Try again.", 'error');
+        this.saveDraft();
+        this.showToast(`Added ${jsonResponse.length} more concepts!`, 'success');
+        this.logger.success('Brainstorm Complete', `Appended ${jsonResponse.length} new items to the deck.`);
       }
     } catch (e: any) {
       console.error(e);
-      this.showToast("AI Request Failed: " + e.message, 'error');
+      this.showToast("Brainstorm More Failed: " + e.message, 'error');
     } finally {
       this.isGeneratingContent.set(false);
     }
   }
 
   private async uploadDraftToStorage(base64Data: string): Promise<string> {
-    if (base64Data.startsWith('http')) return base64Data;
-    if (!base64Data.startsWith('data:')) return base64Data;
-    const fileName = `drafts/memotattoo_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`;
-    const storageRef = ref(storage, fileName);
-    await uploadString(storageRef, base64Data, 'data_url');
-    return await getDownloadURL(storageRef);
+    return this.bucketService.uploadDraftImage(base64Data, 'memotattoo');
   }
 
   private async getAsDataUrl(imageUrl: string): Promise<string> {
@@ -509,17 +492,10 @@ export class FlashcardStudio implements OnInit {
       this.logger.info('Started Upload', `Uploading Art Direction Reference Image`);
 
       // Upload using Blob instead of Base64 to save memory
-      const extension = file.name.split('.').pop() || 'png';
-      const fileName = `drafts/art_direction_${Date.now()}_${Math.random().toString(36).substring(7)}.${extension}`;
-      const storageRef = ref(storage, fileName);
-
-      const uploadTask = await uploadString(storageRef, await this.getAsDataUrl(localUrl), 'data_url');
-      const downloadURL = await getDownloadURL(uploadTask.ref);
-
-      this.artDirectionImage = downloadURL;
+      this.artDirectionImage = await this.bucketService.uploadDraftImage(await this.getAsDataUrl(localUrl), 'art_direction');
       this.saveDraft();
       this.showToast("Reference Image uploaded and saved.", 'success');
-      this.logger.success('Completed Upload', `Uploaded Art Direction Image to ${fileName}`);
+      this.logger.success('Completed Upload', 'Uploaded Art Direction Image to Storage');
     } catch (e: any) {
       this.logger.error('Upload Failed', `Could not upload Art Direction Image`, e);
       this.showToast("Failed to upload image: " + e.message, 'error');
@@ -547,12 +523,7 @@ export class FlashcardStudio implements OnInit {
       const localUrl = URL.createObjectURL(file);
       this.logger.info('Started Upload', `Uploading Custom Concept Image for index ${index}`);
 
-      const extension = file.name.split('.').pop() || 'png';
-      const fileName = `drafts/custom_concept_${Date.now()}_${Math.random().toString(36).substring(7)}.${extension}`;
-      const storageRef = ref(storage, fileName);
-
-      const uploadTask = await uploadString(storageRef, await this.getAsDataUrl(localUrl), 'data_url');
-      const downloadURL = await getDownloadURL(uploadTask.ref);
+      const downloadURL = await this.bucketService.uploadDraftImage(await this.getAsDataUrl(localUrl), 'custom_concept');
 
       this.conceptDrafts.update(drafts => {
         const newDrafts = [...drafts];
@@ -564,7 +535,7 @@ export class FlashcardStudio implements OnInit {
       });
       this.saveDraft();
       this.showToast("Custom concept image uploaded successfully.", 'success');
-      this.logger.success('Completed Upload', `Uploaded Custom Concept Image to ${fileName}`);
+      this.logger.success('Completed Upload', 'Uploaded Custom Concept Image to Storage');
     } catch (e: any) {
       this.logger.error('Upload Failed', `Could not upload Custom Concept Image`, e);
       this.showToast("Failed to upload image: " + e.message, 'error');
@@ -620,46 +591,21 @@ export class FlashcardStudio implements OnInit {
 
     try {
       this.logger.info('Started Image Generation', `Generating new artwork for concept: ${concept.term}`);
-      const inputs: any = {
-        title: data.title || "Untitled",
-        term: concept.term,
-        definition: concept.definition,
-        art_direction: this.artDirection || "None"
-      };
-
-      if (this.artDirectionImage) {
-        let base64RefImage;
-        let fetchUrl = this.artDirectionImage;
-        if (this.artDirectionImage.includes('firebasestorage.googleapis.com')) {
-          const urlObj = new URL(this.artDirectionImage);
-          fetchUrl = '/firebase-storage' + urlObj.pathname + urlObj.search;
-        }
-
-        try {
-          base64RefImage = await this.getAsDataUrl(fetchUrl);
-          const mimeMatch = base64RefImage.match(/^data:(image\/[a-zA-Z]*);base64,(.*)$/);
-          if (mimeMatch) {
-            inputs.art_reference_image = {
-              mime_type: mimeMatch[1],
-              contents: mimeMatch[2]
-            };
-          }
-        } catch (err: any) {
-          console.warn("Could not attach art direction image as base64. Proceeding without it.", err);
-        }
-      }
-
-      const result = await templateModel.generateContent('memotattoo-generate-concept-image-v1', inputs);
-      let newImage = this.extractImagePayload(result);
+      let newImage = await this.aiLogicService.generateAndPersistConceptImage(
+        concept,
+        data.title || "Untitled",
+        this.artDirection || "None",
+        this.artDirectionImage || undefined
+      );
 
       if (newImage) {
-        newImage = await this.uploadDraftToStorage(newImage);
         this.conceptDrafts.update(drafts => {
           const newDrafts = [...drafts];
+          const newImages = [...newDrafts[index].images, newImage as string];
           newDrafts[index] = {
             ...newDrafts[index],
-            images: [...newDrafts[index].images, newImage as string],
-            selectedIndex: newDrafts[index].images.length
+            images: newImages,
+            selectedIndex: newImages.length - 1
           };
           return newDrafts;
         });
@@ -706,38 +652,16 @@ export class FlashcardStudio implements OnInit {
         throw new Error(`CORS or Image Download Error: ${e.message}`);
       }
 
-      // Extract raw base64 data and mime type
-      const mimeMatch = base64Image.match(/^data:(image\/[a-zA-Z]*);base64,(.*)$/);
-      if (!mimeMatch) throw new Error("Could not parse base64 image data.");
-
-      const mimeType = mimeMatch[1];
-      const data = mimeMatch[2];
-
-      const inputs = {
-        inline_image: {
-          mime_type: mimeType,
-          contents: data
-        },
-        modification_prompt: concept.refinePrompt
-      };
-
-      let result;
-      try {
-        result = await templateModel.generateContent('memotattoo-refine-image-v1', inputs);
-      } catch (e: any) {
-        throw new Error(`AI Template Execution Error: ${e.message}. Double-check your prompt template model name is correct.`);
-      }
-
-      let refinedImage = this.extractImagePayload(result);
+      let refinedImage = await this.aiLogicService.refineAndPersistConceptImage(concept, base64Image, concept.refinePrompt);
 
       if (refinedImage) {
-        refinedImage = await this.uploadDraftToStorage(refinedImage);
         this.conceptDrafts.update(drafts => {
           const newDrafts = [...drafts];
+          const newImages = [...newDrafts[index].images, refinedImage as string];
           newDrafts[index] = {
             ...newDrafts[index],
-            images: [...newDrafts[index].images, refinedImage as string],
-            selectedIndex: newDrafts[index].images.length,
+            images: newImages,
+            selectedIndex: newImages.length - 1,
             refinePrompt: ''
           };
           return newDrafts;
@@ -765,24 +689,6 @@ export class FlashcardStudio implements OnInit {
       return newDrafts;
     });
     this.saveDraft();
-  }
-
-  // --- Parser Hack for Different AI Logic Returns ---
-  private extractImagePayload(result: any): string | null {
-    const candidateObj = result.response.candidates?.[0];
-    const inlineData = candidateObj?.content?.parts?.find((p: any) => p.inlineData)?.inlineData;
-
-    if (inlineData) {
-      return `data:${inlineData.mimeType};base64,${inlineData.data}`;
-    } else {
-      const urlStr = result.response.text();
-      if (urlStr.startsWith("http") || urlStr.startsWith("data:")) {
-        return urlStr;
-      } else {
-        this.showToast("The model didn't return standard InlineData or a URL. Check console for raw log.", 'error');
-        return null;
-      }
-    }
   }
 
   // --- Image Viewer / Zoom ---
@@ -830,7 +736,7 @@ export class FlashcardStudio implements OnInit {
       const currentUser = this.userService.user();
 
       const payload = {
-        topic: this.topicForm.value.topic,
+        topic: this.topicForm.value?.topic || 'Untitled',
         contentBase: data,
         artDirection: this.artDirection || null,
         artDirectionImage: this.artDirectionImage || null,
@@ -841,17 +747,11 @@ export class FlashcardStudio implements OnInit {
         owner_email: this.isEditingExisting() ? (this.originalOwnerEmail() || null) : (currentUser?.email || null)
       };
 
-      // Explicitly override isPublic if status is private or draft
       if (payload.status === 'private' || payload.status === 'draft') {
         payload.isPublic = false;
       }
 
-      const currentId = this.activeDraftId();
-      if (currentId) {
-        await updateDoc(doc(firestore, 'FlashcardDecks', currentId), payload);
-      } else {
-        await addDoc(collection(firestore, 'FlashcardDecks'), payload);
-      }
+      await this.flashcardService.saveDeck(this.activeDraftId(), this.sanitizePayload(payload));
 
       const verb = this.isEditingExisting() ? 'Saved' : 'Published';
       const actionMessage = this.isEditingExisting() ? 'saved changes to an existing deck' : 'published a public deck directly to the library';
@@ -860,13 +760,34 @@ export class FlashcardStudio implements OnInit {
       this.logger.info(`Deck ${verb}`, `${actionMessage} titled ${this.topicForm.value.topic} directly to the library.`);
       this.showToast(toastMessage, 'success');
 
-      this.resetLocalState();
-
+      // Small delay to allow the toast to be seen before redirecting
+      setTimeout(() => {
+        this.resetLocalState();
+        this.router.navigate(['/flashcard-library']);
+      }, 1500);
     } catch (err: any) {
-      console.error('Error publishing mission:', err);
-      this.showToast('Error publishing mission: ' + err.message, 'error');
+      console.error('Error publishing deck:', err);
+      this.showToast('Error publishing deck: ' + err.message, 'error');
     } finally {
       this.isSaving.set(false);
     }
+  }
+
+  private sanitizePayload(obj: any): any {
+    if (obj === null || obj === undefined) return null;
+    if (typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(item => this.sanitizePayload(item));
+    if (obj instanceof Date) return obj;
+
+    const sanitized: any = {};
+    Object.keys(obj).forEach(key => {
+      const value = obj[key];
+      if (value === undefined) {
+        sanitized[key] = null;
+      } else {
+        sanitized[key] = this.sanitizePayload(value);
+      }
+    });
+    return sanitized;
   }
 }

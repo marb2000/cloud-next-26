@@ -1,22 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { collection, doc, query, updateDoc, where, onSnapshot } from 'firebase/firestore';
-import { firestore } from '../../core/firebase/firebase';
 import { ConfirmDialogComponent, ConfirmActionParams } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { ActivityLogService } from '../../core/services/activity-log.service';
+import { ModerationService, PendingDeck } from '../../core/services/moderation.service';
 import { ResizeText } from '../../shared/directives/resize-text';
-
-export interface PendingDeck {
-  id: string;
-  title: string;
-  status: string;
-  isPublic: boolean;
-  items: {
-    original: string;
-    translation: string;
-    image: string;
-  }[];
-}
 
 @Component({
   selector: 'app-deck-moderation',
@@ -26,6 +13,7 @@ export interface PendingDeck {
 })
 export class DeckModeration {
   private log = inject(ActivityLogService);
+  private moderationService = inject(ModerationService);
 
   decks = signal<PendingDeck[]>([]);
   isLoading = signal(true);
@@ -37,12 +25,8 @@ export class DeckModeration {
   }
 
   fetchPendingDecks() {
-    const colRef = collection(firestore, 'FlashcardDecks');
-    const q = query(colRef, where('status', '==', 'pending'));
-
-    onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PendingDeck));
-      this.decks.set(data);
+    this.moderationService.getPendingDecks().subscribe(decks => {
+      this.decks.set(decks);
       this.isLoading.set(false);
     });
   }
@@ -79,14 +63,12 @@ export class DeckModeration {
     const action = this.pendingAction();
     if (!action) return;
 
-    const docRef = doc(firestore, `FlashcardDecks/${action.id}`);
-
     try {
       if (action.title === 'Approve Public Deck') {
-        await updateDoc(docRef, { status: 'published', isPublic: true });
+        await this.moderationService.approveDeck(action.id);
         this.log.success('Deck Approved', `Published public deck ${action.id} to the global library.`);
       } else {
-        await updateDoc(docRef, { status: 'draft', isPublic: false });
+        await this.moderationService.rejectDeck(action.id);
         this.log.warning('Deck Rejected', `Returned public deck request for ${action.id} to private draft.`);
       }
     } catch (err) {

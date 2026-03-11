@@ -2,12 +2,10 @@ import { Component, OnInit, OnDestroy, signal, computed, inject, ViewChild, Elem
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { doc, getDoc } from 'firebase/firestore';
-import { firestore, ai } from '../../core/firebase/firebase';
-import { getGenerativeModel, ChatSession } from 'firebase/ai';
-import { GameStateService, ChatMessage } from './game-state.service';
-import { UserService } from '../../core/auth/user.service'; // Added import
-import { ResizeText } from '../../shared/directives/resize-text';
+import { GameStateService } from './game-state.service';
+import { UserService } from '../../core/auth/user.service';
+import { FlashcardService } from '../../core/services/flashcard.service';
+import { AILogicService } from '../../core/services/ai-logic.service';
 
 @Component({
   selector: 'app-game-simulation',
@@ -20,7 +18,9 @@ export class GameSimulation implements OnInit, OnDestroy, AfterViewChecked {
   route = inject(ActivatedRoute);
   router = inject(Router);
   state = inject(GameStateService);
-  userService = inject(UserService); // Added injection
+  userService = inject(UserService);
+  flashcardService = inject(FlashcardService);
+  aiLogicService = inject(AILogicService);
 
   @ViewChild('chatFeed') private chatFeedContainer!: ElementRef;
   @ViewChild('chatInput') private chatInput!: ElementRef<HTMLInputElement>;
@@ -84,19 +84,17 @@ export class GameSimulation implements OnInit, OnDestroy, AfterViewChecked {
 
   async loadDeck(deckId: string) {
     try {
-      const docRef = doc(firestore, 'FlashcardDecks', deckId);
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        this.deckTitle.set(data['topic'] || 'Untitled Deck');
-        this.deckOwnerId = data['owner_id'] || null; // Added this line
+      const data = await this.flashcardService.getDeckById(deckId);
+      if (data) {
+        this.deckTitle.set(data.topic || 'Untitled Deck');
+        this.deckOwnerId = data.owner_id || null;
 
         // Load items with images into the remaining queue
-        const validItems = (data['contentBase']?.items || []).filter((item: any) => item.imageArt && item.imageArt.length > 0);
+        const items = data.contentBase?.items || [];
+        const validItems = items.filter((item: any) => item.imageArt && item.imageArt.length > 0);
 
         // Initialize bolt tracking
-        this.initialConceptCount = validItems.length; // Track total valid concepts for the session
+        this.initialConceptCount = validItems.length;
         this.hasPaidForSession = false;
 
         // Shuffle the concepts for random gameplay
@@ -204,52 +202,19 @@ export class GameSimulation implements OnInit, OnDestroy, AfterViewChecked {
   // --- AI Integration ---
 
   async initAIChat(concept: any) {
+    // Initialize AI Chat for this specific concept
     try {
-      const model = getGenerativeModel(ai, {
-        model: 'gemini-2.5-flash',
-        systemInstruction: `You are the Game Master for a flashcard guessing game. 
-You are testing the user on the term: "${concept.term}".
-The definition of this term is: "${concept.definition}".
-The user is currently looking at an AI-generated image representing this concept.
-
-Your job:
-1. Start the round by saying: "What am I thinking of?" or a similar inviting question.
-2. Evaluate the user's guesses. 
-3. If they guess exactly the term "${concept.term}", you MUST first explicitly state how many points you are awarding them and why (e.g. "Spot on! That's 10 points for getting it on the first try!"). 
-4. Immediately after your explanation, MUST call the \`add_points\` function with the calculated score (max 10, lower if they needed many hints), followed immediately by the \`next_concept\` function to advance the game.
-5. If their guess is very close or related, act as a helpful tutor and give them a hint (a 'pista') based on the definition to steer them closer. Do not give away the exact word unless time runs out.
-6. Keep your responses short, energetic, and engaging!`,
-        tools: [{
-          functionDeclarations: [
-            {
-              name: "add_points",
-              description: "Award points to the user for guessing correctly.",
-              parameters: {
-                type: "object",
-                properties: { points: { type: "number", description: "Points to award, from 1 to 10." } },
-                required: ["points"]
-              }
-            },
-            {
-              name: "next_concept",
-              description: "Advances the game to the next flashcard concept.",
-              parameters: { type: "object", properties: {} }
-            }
-          ]
-        }]
-      });
-
-      this.state.chatSession = await model.startChat();
+      this.state.chatSession = await this.aiLogicService.startGameMasterChat(concept);
 
       // Kick off the conversation
       this.isThinking.set(true);
-      const result = await this.state.chatSession.sendMessage("Start the round.");
-      this.isThinking.set(false);
-      this.chatHistory.update(h => [...h, { role: 'model', text: result.response.text() }]);
-
+      const result = await this.aiLogicService.sendGameGuess(this.state.chatSession, "Start the round.");
+      this.chatHistory.update(h => [...h, { role: 'model', text: result.text }]);
     } catch (e) {
       console.error("Failed to initialize AI Chat:", e);
       this.chatHistory.update(h => [...h, { role: 'model', text: "Error connecting to the Game Master." }]);
+    } finally {
+      this.isThinking.set(false);
     }
   }
 
@@ -262,8 +227,8 @@ Your job:
     this.isThinking.set(true);
 
     try {
-      const result = await this.state.chatSession.sendMessage(text);
-      await this.handleAIResponse(result);
+      const response = await this.aiLogicService.sendGameGuess(this.state.chatSession, text);
+      await this.handleAIResponse(response);
     } catch (e) {
       console.error("Chat error:", e);
       this.chatHistory.update(h => [...h, { role: 'model', text: "Whoops, I lost my train of thought. Try again!" }]);
@@ -272,54 +237,34 @@ Your job:
     }
   }
 
-  private async handleAIResponse(result: any) {
-    let textResponse = '';
-    try {
-      textResponse = result.response.text();
-    } catch (e) {
-      // It's normal for text() to throw an error if the response only contains function calls
+  private async handleAIResponse(response: { text: string, functionCalls?: any[] }) {
+    if (response.text) {
+      this.chatHistory.update(h => [...h, { role: 'model', text: response.text }]);
     }
 
-    if (textResponse) {
-      this.chatHistory.update(h => [...h, { role: 'model', text: textResponse }]);
-    }
-
-    const functionCalls = result.response.functionCalls();
-    if (functionCalls && functionCalls.length > 0) {
-      const responses = [];
+    if (response.functionCalls && response.functionCalls.length > 0) {
+      const results = [];
       let shouldAdvance = false;
 
-      for (const call of functionCalls) {
+      for (const call of response.functionCalls) {
         if (call.name === 'add_points') {
           const pts = (call.args as any).points || 10;
           this.score.update(s => s + pts);
-
-          // Trigger Score Animation
           this.scoreAnimation.set({ points: pts, visible: true });
-          setTimeout(() => {
-            this.scoreAnimation.update(s => ({ ...s, visible: false }));
-          }, 2500); // Hide after animation completes
-
-          responses.push({ functionResponse: { name: call.name, response: { success: true } } });
+          setTimeout(() => this.scoreAnimation.update(s => ({ ...s, visible: false })), 2500);
+          results.push({ functionResponse: { name: call.name, response: { success: true } } });
         } else if (call.name === 'next_concept') {
-          responses.push({ functionResponse: { name: call.name, response: { success: true } } });
+          results.push({ functionResponse: { name: call.name, response: { success: true } } });
           shouldAdvance = true;
         }
       }
 
       if (shouldAdvance) {
-        // Stop processing loop and advance to the next round after a small reading delay
-        setTimeout(() => {
-          this.nextRound();
-        }, 2500);
-        return;
-      } else {
-        // If we processed function calls but didn't advance, send the results back to the model
-        // and recursively handle its subsequent response (which might be another function call or text)
-        if (this.state.chatSession) {
-          const nextResult = await this.state.chatSession.sendMessage(responses);
-          await this.handleAIResponse(nextResult);
-        }
+        setTimeout(() => this.nextRound(), 2500);
+      } else if (this.state.chatSession) {
+        // Send back function results and handle recursive follow-up
+        const nextResult = await this.aiLogicService.sendGameGuess(this.state.chatSession, results as any);
+        await this.handleAIResponse(nextResult);
       }
     }
   }

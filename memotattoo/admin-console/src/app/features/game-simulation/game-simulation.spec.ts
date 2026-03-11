@@ -3,6 +3,7 @@ import { GameSimulation } from './game-simulation';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GameStateService } from './game-state.service';
 import { UserService } from '../../core/auth/user.service';
+import { AILogicService } from '../../core/services/ai-logic.service';
 import { of } from 'rxjs';
 import { signal } from '@angular/core';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -10,6 +11,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 describe('GameSimulation', () => {
   let component: GameSimulation;
   let fixture: ComponentFixture<GameSimulation>;
+  let mockAILogicService: any;
 
   beforeEach(async () => {
     const mockActivatedRoute = {
@@ -40,13 +42,19 @@ describe('GameSimulation', () => {
       rewardCreator: vi.fn()
     };
 
+    mockAILogicService = {
+      startGameMasterChat: vi.fn().mockResolvedValue({ sendMessage: vi.fn() }),
+      sendGameGuess: vi.fn().mockResolvedValue({ text: 'AI response' })
+    };
+
     await TestBed.configureTestingModule({
       imports: [GameSimulation],
       providers: [
         { provide: ActivatedRoute, useValue: mockActivatedRoute },
         { provide: Router, useValue: mockRouter },
         { provide: GameStateService, useValue: mockGameStateService },
-        { provide: UserService, useValue: mockUserService }
+        { provide: UserService, useValue: mockUserService },
+        { provide: AILogicService, useValue: mockAILogicService }
       ]
     })
     .compileComponents();
@@ -58,5 +66,15 @@ describe('GameSimulation', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should delegate chat guesses to aiLogicService', async () => {
+    component.userInput.set('My guess');
+    component.state.chatSession = {} as any;
+    
+    await component.sendGuess();
+
+    expect(mockAILogicService.sendGameGuess).toHaveBeenCalledWith(expect.any(Object), 'My guess');
+    expect(component.chatHistory()).toContainEqual(expect.objectContaining({ role: 'model', text: 'AI response' }));
   });
 });

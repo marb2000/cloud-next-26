@@ -2,13 +2,18 @@ package com.firebaseailogic.memotattoo.ui.flashcards
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.firebaseailogic.memotattoo.data.FirebaseManager
+import com.firebaseailogic.memotattoo.data.IUserRepository
+import com.firebaseailogic.memotattoo.data.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 data class UserProfile(
         val uid: String,
@@ -23,85 +28,46 @@ data class UserProfile(
 
 class UserProfileViewModel(
     private val auth: FirebaseAuth = FirebaseManager.auth,
-    private val firestore: FirebaseFirestore = FirebaseManager.firestore
+    private val repository: IUserRepository = UserRepository()
 ) : ViewModel() {
     private val _userProfile = MutableStateFlow<UserProfile?>(null)
     val userProfile: StateFlow<UserProfile?> = _userProfile.asStateFlow()
 
-    private var firestoreListener: ListenerRegistration? = null
-
     init {
-        auth.addAuthStateListener { firebaseAuth ->
-            val user = firebaseAuth.currentUser
-            if (user != null) {
-                startListening(user.uid)
-            } else {
-                stopListening()
-                _userProfile.value = null
+        viewModelScope.launch {
+            auth.addAuthStateListener { firebaseAuth ->
+                val user = firebaseAuth.currentUser
+                if (user != null) {
+                    startListening(user.uid)
+                } else {
+                    _userProfile.value = null
+                }
             }
         }
     }
 
     private fun startListening(uid: String) {
-        stopListening()
-        firestoreListener =
-                firestore.collection("Users").document(uid).addSnapshotListener {
-                        snapshot,
-                        e ->
-                    if (e != null) {
-                        Log.w("UserProfileVM", "Listen failed.", e)
-                        return@addSnapshotListener
-                    }
-
-                    if (snapshot != null && snapshot.exists()) {
-                        val profile =
-                                UserProfile(
-                                        uid = uid,
-                                        email = snapshot.getString("email") ?: "",
-                                        energyBolts = snapshot.getLong("energy_bolts")?.toInt()
-                                                        ?: 0,
-                                        isBanned = snapshot.getBoolean("isBanned") ?: false,
-                                        isPro = snapshot.getBoolean("isPro") ?: false,
-                                        imagesGeneratedThisMonth = snapshot.getLong("imagesGeneratedThisMonth")?.toInt() ?: 0,
-                                        cancelAtPeriodEnd = snapshot.getBoolean("cancelAtPeriodEnd") ?: false,
-                                        currentPeriodEnd = snapshot.getLong("currentPeriodEnd")
-                                )
-
-                        // Handle automatic demotion if subscription period ended after cancellation
-                        val now = System.currentTimeMillis()
-                        if (profile.isPro && profile.cancelAtPeriodEnd && profile.currentPeriodEnd != null && now > profile.currentPeriodEnd) {
-                                // Downgrade to Free
-                                firestore.collection("Users").document(uid).update(
-                                        mapOf(
-                                                "isPro" to false,
-                                                "cancelAtPeriodEnd" to false,
-                                                "currentPeriodEnd" to null
-                                        )
-                                )
-                                // It will trigger snapshot listener again so we can skip this update
-                                return@addSnapshotListener
-                        }
-
-                        if (profile.isBanned) {
-                            FirebaseManager.auth.signOut()
-                            _userProfile.value = null
-                        } else {
-                            _userProfile.value = profile
-                        }
-                    } else {
-                        Log.d("UserProfileVM", "Current data: null")
-                        _userProfile.value = null
-                    }
+        viewModelScope.launch {
+            repository.getUserProfile(uid).collectLatest { profile ->
+                if (profile == null) {
+                    _userProfile.value = null
+                    return@collectLatest
                 }
-    }
 
-    private fun stopListening() {
-        firestoreListener?.remove()
-        firestoreListener = null
-    }
+                // Handle automatic demotion
+                val now = System.currentTimeMillis()
+                if (profile.isPro && profile.cancelAtPeriodEnd && profile.currentPeriodEnd != null && now > profile.currentPeriodEnd) {
+                    repository.downgradeToFree(uid)
+                    return@collectLatest
+                }
 
-    override fun onCleared() {
-        super.onCleared()
-        stopListening()
+                if (profile.isBanned) {
+                    auth.signOut()
+                    _userProfile.value = null
+                } else {
+                    _userProfile.value = profile
+                }
+            }
+        }
     }
 }

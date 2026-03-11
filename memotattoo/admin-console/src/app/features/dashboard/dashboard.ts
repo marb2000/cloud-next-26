@@ -1,10 +1,10 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { firestore } from '../../core/firebase/firebase';
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { AnalyticsService } from '../../core/services/analytics.service';
 
 @Component({
   selector: 'app-dashboard',
+  standalone: true,
   imports: [CommonModule],
   template: `
     <h2 class="text-3xl font-bold text-slate-100 mb-8 tracking-tight">Business Intelligence Dashboard</h2>
@@ -53,6 +53,8 @@ import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
   `
 })
 export class Dashboard implements OnInit {
+  private analyticsService = inject(AnalyticsService);
+
   usersCount = signal<number | string>('...');
   proUsersCount = signal<number>(0);
   
@@ -64,45 +66,17 @@ export class Dashboard implements OnInit {
 
   async ngOnInit() {
     try {
-      const usersSnap = await getDocs(collection(firestore, 'Users'));
-      const count = usersSnap.size;
-      this.usersCount.set(count);
-      
-      let proCount = 0;
-      let imgCount = 0;
-      let tokenCount = 0;
-      
-      usersSnap.forEach(doc => {
-        const data = doc.data();
-        if (data['isPro'] === true) proCount++;
-        if (data['imagesGeneratedThisMonth']) {
-           imgCount += (typeof data['imagesGeneratedThisMonth'] === 'number' ? data['imagesGeneratedThisMonth'] : 0);
-        }
-        if (data['tokensConsumedThisMonth']) {
-           tokenCount += (typeof data['tokensConsumedThisMonth'] === 'number' ? data['tokensConsumedThisMonth'] : 0);
-        }
-      });
-      
-      this.proUsersCount.set(proCount);
-      this.totalImagesGenerated.set(imgCount);
-      this.totalTokensConsumed.set(tokenCount);
-      
-    } catch (e) { console.error("Could not fetch Users data", e); }
+      const userStats = await this.analyticsService.getUserStats();
+      this.usersCount.set(userStats.totalUsers);
+      this.proUsersCount.set(userStats.proUsers);
+      this.totalImagesGenerated.set(userStats.imagesGenerated);
+      this.totalTokensConsumed.set(userStats.tokensConsumed);
 
-    try {
-      const decksQuery = query(collection(firestore, 'FlashcardDecks'), orderBy('bestScore', 'desc'), limit(5));
-      const decksSnap = await getDocs(decksQuery);
-      
-      // We still want total decks count, but for simplicity let's just count all from a base query
-      const allDecksSnap = await getDocs(collection(firestore, 'FlashcardDecks'));
-      this.decksCount.set(allDecksSnap.size);
-      
-      const decksList: any[] = [];
-      decksSnap.forEach(doc => {
-        decksList.push({ id: doc.id, ...doc.data() });
-      });
-      this.topDecks.set(decksList);
-      
-    } catch (e) { console.error("Could not fetch Flashcard Decks", e); }
+      const deckStats = await this.analyticsService.getDeckStats();
+      this.decksCount.set(deckStats.totalDecks);
+      this.topDecks.set(deckStats.topDecks);
+    } catch (e) {
+      console.error("Dashboard data fetch failed", e);
+    }
   }
 }

@@ -1,36 +1,30 @@
 package com.firebaseailogic.memotattoo.ui.flashcards
 
 import android.util.Log
-import com.firebaseailogic.memotattoo.data.FirebaseManager
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.firestore.CollectionReference
-import com.google.firebase.firestore.DocumentReference
-import com.google.firebase.firestore.DocumentSnapshot
-import com.google.firebase.firestore.EventListener
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.slot
-import io.mockk.verify
+import com.firebaseailogic.memotattoo.data.IUserRepository
+import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.*
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
+import com.firebaseailogic.memotattoo.ui.flashcards.UserProfile
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class UserProfileViewModelTest {
 
     private val auth: FirebaseAuth = mockk(relaxed = true)
-    private val firestore: FirebaseFirestore = mockk(relaxed = true)
+    private val repository: IUserRepository = mockk(relaxed = true)
     private val testDispatcher = StandardTestDispatcher()
+
+    private val userFlow = MutableStateFlow<UserProfile?>(null)
 
     @Before
     fun setup() {
@@ -41,18 +35,26 @@ class UserProfileViewModelTest {
         every { Log.d(any<String>(), any<String>()) } returns 0
         every { Log.w(any<String>(), any<String>()) } returns 0
         every { Log.w(any<String>(), any<String>(), any<Throwable>()) } returns 0
+
+        every { repository.getUserProfile(any<String>()) } returns userFlow
     }
 
-    private fun createViewModel() = UserProfileViewModel(auth, firestore)
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+        unmockkAll()
+    }
+
+    private fun createViewModel() = UserProfileViewModel(auth, repository)
 
     @Test
-    fun `initial state is null`() {
+    fun `initial state is null`() = runTest {
         val viewModel = createViewModel()
         assertNull(viewModel.userProfile.value)
     }
 
     @Test
-    fun `when user is logged in, profile is fetched from firestore`() {
+    fun `when user is logged in, profile is fetched from repository`() = runTest {
         val authListenerSlot = slot<FirebaseAuth.AuthStateListener>()
         every { auth.addAuthStateListener(capture(authListenerSlot)) } returns Unit
         
@@ -60,41 +62,34 @@ class UserProfileViewModelTest {
         every { currentUser.uid } returns "test_uid"
         every { auth.currentUser } returns currentUser
 
-        val docRef: DocumentReference = mockk()
-        val collectionRef: CollectionReference = mockk()
-        every { firestore.collection("Users") } returns collectionRef
-        every { collectionRef.document("test_uid") } returns docRef
-        
-        val snapshotListenerSlot = slot<EventListener<DocumentSnapshot>>()
-        every { docRef.addSnapshotListener(capture(snapshotListenerSlot)) } returns mockk<ListenerRegistration>(relaxed = true)
-
         val viewModel = createViewModel()
+        runCurrent()
         
         // Trigger auth listener
         authListenerSlot.captured.onAuthStateChanged(auth)
         
-        val snapshot: DocumentSnapshot = mockk()
-        every { snapshot.exists() } returns true
-        every { snapshot.getString("email") } returns "test@example.com"
-        every { snapshot.getLong("energy_bolts") } returns 10L
-        every { snapshot.getBoolean("isBanned") } returns false
-        every { snapshot.getBoolean("isPro") } returns true
-        every { snapshot.getLong("imagesGeneratedThisMonth") } returns 5L
-        every { snapshot.getBoolean("cancelAtPeriodEnd") } returns false
-        every { snapshot.getLong("currentPeriodEnd") } returns null
+        val profile = UserProfile(
+            uid = "test_uid",
+            email = "test@example.com",
+            energyBolts = 10,
+            isBanned = false,
+            isPro = true,
+            imagesGeneratedThisMonth = 5
+        )
 
-        // Trigger snapshot listener
-        snapshotListenerSlot.captured.onEvent(snapshot, null)
+        // Trigger repository flow
+        userFlow.value = profile
+        advanceUntilIdle()
 
-        val profile = viewModel.userProfile.value
-        assertNotNull(profile)
-        assertEquals("test@example.com", profile?.email)
-        assertEquals(10, profile?.energyBolts)
-        assertEquals(true, profile?.isPro)
+        val state = viewModel.userProfile.value
+        assertNotNull(state)
+        assertEquals("test@example.com", state?.email)
+        assertEquals(10, state?.energyBolts)
+        assertEquals(true, state?.isPro)
     }
 
     @Test
-    fun `when user is pro and period ended after cancellation, automatic demotion is triggered`() {
+    fun `when user is pro and period ended after cancellation, automatic demotion is triggered`() = runTest {
         val authListenerSlot = slot<FirebaseAuth.AuthStateListener>()
         every { auth.addAuthStateListener(capture(authListenerSlot)) } returns Unit
         
@@ -102,39 +97,25 @@ class UserProfileViewModelTest {
         every { currentUser.uid } returns "test_uid"
         every { auth.currentUser } returns currentUser
 
-        val docRef: DocumentReference = mockk()
-        val collectionRef: CollectionReference = mockk()
-        every { firestore.collection("Users") } returns collectionRef
-        every { collectionRef.document("test_uid") } returns docRef
-        
-        val snapshotListenerSlot = slot<EventListener<DocumentSnapshot>>()
-        every { docRef.addSnapshotListener(capture(snapshotListenerSlot)) } returns mockk<ListenerRegistration>(relaxed = true)
-
         val viewModel = createViewModel()
+        runCurrent()
         authListenerSlot.captured.onAuthStateChanged(auth)
         
-        val snapshot: DocumentSnapshot = mockk()
-        every { snapshot.exists() } returns true
-        every { snapshot.getString("email") } returns "test@example.com"
-        every { snapshot.getLong("energy_bolts") } returns 10L
-        every { snapshot.getBoolean("isBanned") } returns false
-        every { snapshot.getBoolean("isPro") } returns true
-        every { snapshot.getLong("imagesGeneratedThisMonth") } returns 5L
-        every { snapshot.getBoolean("cancelAtPeriodEnd") } returns true
-        every { snapshot.getLong("currentPeriodEnd") } returns System.currentTimeMillis() - 1000L // Ended 1 second ago
+        val profile = UserProfile(
+            uid = "test_uid",
+            email = "test@example.com",
+            energyBolts = 10,
+            isBanned = false,
+            isPro = true,
+            imagesGeneratedThisMonth = 5,
+            cancelAtPeriodEnd = true,
+            currentPeriodEnd = System.currentTimeMillis() - 1000L // Ended 1 second ago
+        )
 
-        // Mock the update call
-        every { docRef.update(any<Map<String, Any?>>()) } returns mockk(relaxed = true)
+        userFlow.value = profile
+        advanceUntilIdle()
 
-        snapshotListenerSlot.captured.onEvent(snapshot, null)
-
-        // Verify that demotion update was called
-        verify {
-            docRef.update(mapOf(
-                "isPro" to false,
-                "cancelAtPeriodEnd" to false,
-                "currentPeriodEnd" to null
-            ))
-        }
+        // Verify that demotion was called on repository
+        coVerify { repository.downgradeToFree("test_uid") }
     }
 }

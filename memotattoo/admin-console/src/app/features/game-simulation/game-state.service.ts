@@ -1,5 +1,4 @@
 import { Injectable, signal } from '@angular/core';
-import { ChatSession } from 'firebase/ai';
 
 export interface ChatMessage {
   role: 'user' | 'model';
@@ -20,7 +19,7 @@ export class GameStateService {
   isSessionActive = signal<boolean>(false);
   isGameOver = signal<boolean>(false);
 
-  chatSession: ChatSession | null = null;
+  chatSession: any = null;
   chatHistory = signal<ChatMessage[]>([]);
   isThinking = signal<boolean>(false);
 

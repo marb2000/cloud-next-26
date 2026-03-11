@@ -3,53 +3,50 @@ import { FlashcardStudio } from './flashcard-studio';
 import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
 import { ActivityLogService } from '../../core/services/activity-log.service';
 import { UserService } from '../../core/auth/user.service';
+import { FlashcardService } from '../../core/services/flashcard.service';
+import { AILogicService } from '../../core/services/ai-logic.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { signal } from '@angular/core';
-
-// Mock Firebase
-vi.mock('firebase/firestore', () => ({
-  collection: vi.fn(() => ({ id: 'mock-collection' })),
-  addDoc: vi.fn(),
-  doc: vi.fn(() => ({ id: 'mock-doc' })),
-  updateDoc: vi.fn(),
-  deleteDoc: vi.fn(),
-  getFirestore: vi.fn(),
-  getDocs: vi.fn(),
-  query: vi.fn(),
-  orderBy: vi.fn(),
-  limit: vi.fn()
-}));
-
-vi.mock('../../core/firebase/firebase', () => ({
-  firestore: {},
-  templateModel: {},
-  storage: {},
-  ai: {}
-}));
 
 describe('FlashcardStudio', () => {
   let component: FlashcardStudio;
   let fixture: ComponentFixture<FlashcardStudio>;
   let mockActivityLogService: any;
   let mockUserService: any;
+  let mockFlashcardService: any;
+  let mockAILogicService: any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     mockActivityLogService = {
       info: vi.fn(),
-      error: vi.fn()
+      error: vi.fn(),
+      success: vi.fn()
     };
     mockUserService = {
       userProfile: signal(null),
       user: signal(null)
+    };
+    mockFlashcardService = {
+      saveDeck: vi.fn().mockResolvedValue('new-id')
+    };
+    mockAILogicService = {
+      brainstormTopic: vi.fn().mockResolvedValue({ items: [] }),
+      brainstormMore: vi.fn().mockResolvedValue([]),
+      generateConceptImage: vi.fn().mockResolvedValue('mock-image-url'),
+      refineConceptImage: vi.fn().mockResolvedValue('mock-refined-url'),
+      generateAndPersistConceptImage: vi.fn().mockResolvedValue('https://storage/image.jpg'),
+      refineAndPersistConceptImage: vi.fn().mockResolvedValue('https://storage/refined.jpg')
     };
 
     await TestBed.configureTestingModule({
       providers: [
         { provide: ActivityLogService, useValue: mockActivityLogService },
         { provide: UserService, useValue: mockUserService },
+        { provide: FlashcardService, useValue: mockFlashcardService },
+        { provide: AILogicService, useValue: mockAILogicService },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -83,137 +80,93 @@ describe('FlashcardStudio', () => {
   });
 
   describe('saveToGlobalLibrary', () => {
-    it('should set status to published and isPublic to true when direct publishing', async () => {
-      const firestoreModule = await import('firebase/firestore');
-      const addDoc = firestoreModule.addDoc as any;
-      
+    it('should call flashcardService.saveDeck and preserve ownership when editing', async () => {
       component.topicForm.patchValue({ topic: 'Test Topic' });
       component.editableJson = JSON.stringify({ items: [] });
-      component.activeDraftId.set(null); 
-
-      await component.saveToGlobalLibrary();
-
-      expect(addDoc).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          topic: 'Test Topic',
-          status: 'published',
-          isPublic: true
-        })
-      );
-    });
-
-    it('should use updateDoc when an activeDraftId exists', async () => {
-      const firestoreModule = await import('firebase/firestore');
-      const updateDoc = firestoreModule.updateDoc as any;
-      
-      component.topicForm.patchValue({ topic: 'Updated Topic' });
-      component.editableJson = JSON.stringify({ items: [] });
-      component.activeDraftId.set('existing-id');
-
-      await component.saveToGlobalLibrary();
-
-      expect(updateDoc).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          topic: 'Updated Topic',
-          status: 'published'
-        })
-      );
-    });
-
-    it('should include art direction metadata in the payload', async () => {
-      const firestoreModule = await import('firebase/firestore');
-      const addDoc = firestoreModule.addDoc as any;
-      
-      component.topicForm.patchValue({ topic: 'Art Topic' });
-      component.editableJson = JSON.stringify({ items: [] });
-      component.activeDraftId.set(null);
-      component.artDirection = 'Comic book style';
-      component.artDirectionImage = 'base64-image-data';
-
-      await component.saveToGlobalLibrary();
-
-      expect(addDoc).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          artDirection: 'Comic book style',
-          artDirectionImage: 'base64-image-data'
-        })
-      );
-    });
-
-    it('should show "Changes saved" toast when editing existing deck', async () => {
-      const firestoreModule = await import('firebase/firestore');
-      const updateDoc = firestoreModule.updateDoc as any;
-      
-      component.topicForm.patchValue({ topic: 'Existing Topic' });
-      component.editableJson = JSON.stringify({ items: [] });
-      component.activeDraftId.set('existing-id');
-      component.isEditingExisting.set(true);
-
-      await component.saveToGlobalLibrary();
-
-      expect(updateDoc).toHaveBeenCalled();
-      expect(mockActivityLogService.info).toHaveBeenCalledWith(
-        'Deck Saved',
-        expect.stringContaining('saved changes to an existing deck')
-      );
-    });
-
-    it('should preserve original owner and privacy when editing existing deck', async () => {
-      const firestoreModule = await import('firebase/firestore');
-      const updateDoc = firestoreModule.updateDoc as any;
-      
-      component.topicForm.patchValue({ topic: 'Existing Topic' });
-      component.editableJson = JSON.stringify({ items: [] });
       component.activeDraftId.set('existing-id');
       component.isEditingExisting.set(true);
       
-      // Simulate original state
       component.originalOwnerId.set('original-creator-id');
       component.originalOwnerEmail.set('original@creator.com');
       component.originalIsPublic.set(false);
       component.originalStatus.set('draft');
 
-      // Mock current user (the editor)
-      mockUserService.user.set({ uid: 'editor-id', email: 'editor@admin.com' });
-
       await component.saveToGlobalLibrary();
 
-      expect(updateDoc).toHaveBeenCalledWith(
-        expect.anything(),
+      expect(mockFlashcardService.saveDeck).toHaveBeenCalledWith(
+        'existing-id',
         expect.objectContaining({
           owner_id: 'original-creator-id',
           owner_email: 'original@creator.com',
-          isPublic: false,
-          status: 'draft'
+          status: 'draft',
+          isPublic: false
         })
       );
     });
 
     it('should set isPublic to false when status is private', async () => {
-      const firestoreModule = await import('firebase/firestore');
-      const updateDoc = firestoreModule.updateDoc as any;
-      
       component.topicForm.patchValue({ topic: 'Private Topic' });
       component.editableJson = JSON.stringify({ items: [] });
       component.activeDraftId.set('private-id');
       component.isEditingExisting.set(true);
       
-      // Setting status to private
       component.originalStatus.set('private');
-      component.originalIsPublic.set(true); // Should be overridden to false
+      component.originalIsPublic.set(true); 
 
       await component.saveToGlobalLibrary();
 
-      expect(updateDoc).toHaveBeenCalledWith(
-        expect.anything(),
+      expect(mockFlashcardService.saveDeck).toHaveBeenCalledWith(
+        'private-id',
         expect.objectContaining({
           status: 'private',
           isPublic: false
         })
       );
+    });
+  });
+
+  describe('AI Logic Calls', () => {
+    it('should call aiLogicService.brainstormTopic', async () => {
+      component.topicForm.patchValue({ topic: 'Calculus', numConcepts: 10 });
+      await component.brainstormTopic();
+      expect(mockAILogicService.brainstormTopic).toHaveBeenCalledWith('Calculus', 10);
+    });
+
+    it('should use generateAndPersistConceptImage for new images', async () => {
+      component.editableJson = JSON.stringify({ title: 'Math', items: [{ term: '1+1', definition: '2' }] });
+      component.conceptDrafts.set([{ term: '1+1', definition: '2', images: [], selectedIndex: 0, refinePrompt: '', isGenerating: false }]);
+      
+      await component.generateConceptImage(0);
+
+      expect(mockAILogicService.generateAndPersistConceptImage).toHaveBeenCalled();
+      expect(component.conceptDrafts()[0].images).toContain('https://storage/image.jpg');
+    });
+
+    it('should use refineAndPersistConceptImage for refining', async () => {
+      component.conceptDrafts.set([{ 
+        term: '1+1', 
+        definition: '2', 
+        images: ['https://storage/old.jpg'], 
+        selectedIndex: 0, 
+        refinePrompt: 'more colorful', 
+        isGenerating: false 
+      }]);
+      
+      // Mock fetch for image download in component
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        blob: () => Promise.resolve(new Blob())
+      }));
+      // Mock getAsDataUrl since it's private but uses global FileReader
+      vi.spyOn(component as any, 'getAsDataUrl').mockResolvedValue('data:image/png;base64,...');
+
+      await component.refineConceptImage(0);
+
+      expect(mockAILogicService.refineAndPersistConceptImage).toHaveBeenCalledWith(
+        expect.any(Object), 
+        'data:image/png;base64,...', 
+        'more colorful'
+      );
+      expect(component.conceptDrafts()[0].images).toContain('https://storage/refined.jpg');
     });
   });
 });

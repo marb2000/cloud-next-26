@@ -20,944 +20,277 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.firebaseailogic.memotattoo.ai.AILogic
-import com.firebaseailogic.memotattoo.data.FirebaseManager
 import com.firebaseailogic.memotattoo.ui.components.AutoResizeText
 import com.firebaseailogic.memotattoo.ui.components.FullScreenImageViewer
 import com.firebaseailogic.memotattoo.ui.theme.MemoGradientBrush
 import com.firebaseailogic.memotattoo.ui.theme.Shapes
-import com.google.firebase.ai.Chat
-import com.google.firebase.ai.type.FunctionResponsePart
-import com.google.firebase.ai.type.content
-import com.google.firebase.firestore.FieldValue
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-
-data class ChatMessage(val isUser: Boolean, val text: String, val isSystem: Boolean = false)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GameSessionScreen(
-        navController: NavController,
-        deckId: String,
-        userProfileViewModel: com.firebaseailogic.memotattoo.ui.flashcards.UserProfileViewModel =
-                androidx.lifecycle.viewmodel.compose.viewModel()
+    navController: NavController,
+    deckId: String,
+    viewModel: GameSessionViewModel = viewModel()
 ) {
-        var isLoading by remember { mutableStateOf(true) }
-        var score by remember { mutableIntStateOf(0) }
-        var currentConcept by remember { mutableStateOf<Map<String, Any>?>(null) }
-        var deckTitle by remember { mutableStateOf("Loading...") }
-        var remainingConcepts = remember { mutableStateListOf<Map<String, Any>>() }
-        var isGameOver by remember { mutableStateOf(false) }
-        // SRS / Progress Stats
+    val uiState by viewModel.uiState.collectAsState()
+    val listState = rememberLazyListState()
+    var inputText by remember { mutableStateOf("") }
+    var fullScreenImageUrl by remember { mutableStateOf<String?>(null) }
 
-        // Full Screen Image Viewer State
-        var fullScreenImageUrl by remember { mutableStateOf<String?>(null) }
-        var termsGuessed by remember { mutableIntStateOf(0) }
-        var deckOwnerId by remember { mutableStateOf<String?>(null) }
-        var hasPaidForSession by remember { mutableStateOf(false) }
-        var sessionTotalItems by remember { mutableIntStateOf(0) }
+    LaunchedEffect(deckId) {
+        viewModel.initSession(deckId)
+    }
 
-        val userProfile by userProfileViewModel.userProfile.collectAsState()
-        val energyBolts = userProfile?.energyBolts ?: 0
-
-        val chat = remember { mutableStateOf<Chat?>(null) }
-        val messages = remember { mutableStateListOf<ChatMessage>() }
-        var inputText by remember { mutableStateOf("") }
-        var isSubmitting by remember { mutableStateOf(false) }
-
-        var timeRemaining by remember { mutableIntStateOf(60) }
-        var isTimerRunning by remember { mutableStateOf(false) }
-
-        val listState = rememberLazyListState()
-        var pointsAnimTrigger by remember { mutableStateOf<Int?>(null) }
-        var timeUpAnimTrigger by remember { mutableStateOf<String?>(null) }
-
-        val coroutineScope = rememberCoroutineScope()
-
-        LaunchedEffect(messages.size) {
-                if (messages.isNotEmpty()) {
-                        listState.animateScrollToItem(messages.size - 1)
-                }
+    LaunchedEffect(uiState.messages.size) {
+        if (uiState.messages.isNotEmpty()) {
+            listState.animateScrollToItem(uiState.messages.size - 1)
         }
+    }
 
-        LaunchedEffect(pointsAnimTrigger) {
-                if (pointsAnimTrigger != null) {
-                        kotlinx.coroutines.delay(2500L)
-                        pointsAnimTrigger = null
-                }
+    // Save score when game ends
+    LaunchedEffect(uiState.isGameOver) {
+        if (uiState.isGameOver) {
+            viewModel.saveScore(deckId)
         }
+    }
 
-        LaunchedEffect(currentConcept, isTimerRunning) {
-                if (currentConcept != null && isTimerRunning) {
-                        while (timeRemaining > 0) {
-                                kotlinx.coroutines.delay(1000L)
-                                timeRemaining -= 1
-                        }
-                        if (timeRemaining == 0 && !isSubmitting) {
-                                isTimerRunning = false
-                                coroutineScope.launch {
-                                        val expiredTerm =
-                                                currentConcept?.get("term")
-                                                        ?: currentConcept?.get("original") ?: ""
-
-                                        timeUpAnimTrigger = expiredTerm.toString()
-                                        kotlinx.coroutines.delay(3000L)
-                                        timeUpAnimTrigger = null
-                                        messages.clear()
-
-                                        if (remainingConcepts.isNotEmpty()) {
-                                                currentConcept = remainingConcepts.removeAt(0)
-
-                                                val playedCount = sessionTotalItems - remainingConcepts.size
-                                                if (!hasPaidForSession &&
-                                                                sessionTotalItems > 0 &&
-                                                                playedCount >= (sessionTotalItems / 2)
-                                                ) {
-                                                        hasPaidForSession = true
-                                                        val uid = FirebaseManager.auth.currentUser?.uid
-                                                        if (uid != null) {
-                                                                try {
-                                                                        if (energyBolts >= 1) {
-                                                                                FirebaseManager.firestore
-                                                                                        .collection("Users")
-                                                                                        .document(uid)
-                                                                                        .update(
-                                                                                                "energy_bolts",
-                                                                                                energyBolts -
-                                                                                                        1
-                                                                                        )
-                                                                                        .await()
-                                                                        } else {
-                                                                                navController.navigate(
-                                                                                        "billing"
-                                                                                )
-                                                                        }
-                                                                        if (deckOwnerId != null &&
-                                                                                        deckOwnerId != uid
-                                                                        ) {
-                                                                                val creatorRef =
-                                                                                        FirebaseManager
-                                                                                                .firestore
-                                                                                                .collection(
-                                                                                                        "Users"
-                                                                                                )
-                                                                                                .document(
-                                                                                                        deckOwnerId!!
-                                                                                                )
-                                                                                val creatorSnap =
-                                                                                        creatorRef
-                                                                                                .get()
-                                                                                                .await()
-                                                                                if (creatorSnap.exists()) {
-                                                                                        val creatorBolts =
-                                                                                                creatorSnap
-                                                                                                        .getLong(
-                                                                                                                "energy_bolts"
-                                                                                                        )
-                                                                                                        ?: 0L
-                                                                                        creatorRef
-                                                                                                .update(
-                                                                                                        "energy_bolts",
-                                                                                                        creatorBolts +
-                                                                                                                1
-                                                                                                )
-                                                                                                .await()
-                                                                                }
-                                                                        }
-                                                                } catch (e: Exception) {
-                                                                        e.printStackTrace()
-                                                                }
-                                                        }
-                                                }
-
-                                                val newTerm =
-                                                        currentConcept?.get("term")?.toString()
-                                                                ?: currentConcept?.get("original")?.toString() ?: ""
-                                                val newDef =
-                                                        currentConcept?.get("definition")?.toString()
-                                                                ?: currentConcept?.get("translation")?.toString() ?: ""
-                                                val imageSource = (currentConcept?.get("imageArt") as? String) ?: (currentConcept?.get("image") as? String) ?: ""
-                                                isSubmitting = true
-                                                try {
-                                                        val advancePrompt = if (imageSource.isNotBlank()) {
-                                                                "The timer ran out. We advanced to the next concept. New target term is '$newTerm' and its definition is '$newDef'. Start this round now!"
-                                                        } else {
-                                                                "The timer ran out. We advanced to the next concept. New target term is '$newTerm' and its definition is '$newDef'. There is NO image. Start this round by giving the user the definition: '$newDef', and asking them what word fits it."
-                                                        }
-                                                        
-                                                        val advanceResponse =
-                                                                chat.value?.sendMessage(advancePrompt)
-                                                        messages.add(
-                                                                ChatMessage(
-                                                                        false,
-                                                                        advanceResponse?.text
-                                                                                ?: "Let's guess the next one!"
-                                                                )
-                                                        )
-                                                        timeRemaining = 60
-                                                        isTimerRunning = true
-                                                } catch (e: Exception) {
-                                                        e.printStackTrace()
-                                                } finally {
-                                                        isSubmitting = false
-                                                }
-                                        } else {
-                                                currentConcept = null
-                                                isTimerRunning = false
-                                        }
-                                }
-                        }
-                }
+    if (uiState.isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
         }
+        return
+    }
 
-        LaunchedEffect(deckId) {
-                try {
-                        val docSnap =
-                                FirebaseManager.firestore
-                                        .collection("FlashcardDecks")
-                                        .document(deckId)
-                                        .get()
-                                        .await()
-                        @Suppress("UNCHECKED_CAST")
-                        val contentBase = docSnap.get("contentBase") as? Map<String, Any>
-                        @Suppress("UNCHECKED_CAST")
-                        val loadedItems =
-                                (docSnap.get("items") as? List<Map<String, Any>>)
-                                        ?: (contentBase?.get("items") as? List<Map<String, Any>>)
-                                        ?: emptyList()
-                        deckOwnerId = docSnap.getString("owner_id")
-                        val rootTitle = docSnap.getString("title")
-                        val contentTitle = contentBase?.get("title") as? String
-                        val docTopic = docSnap.getString("topic")
-                        
-                        deckTitle = docTopic?.takeIf { it.isNotBlank() } 
-                            ?: rootTitle?.takeIf { it.isNotBlank() } 
-                            ?: contentTitle?.takeIf { it.isNotBlank() } 
-                            ?: "Unknown Topic"
-
-                        remainingConcepts.addAll(loadedItems.shuffled())
-                        sessionTotalItems = loadedItems.size
-
-                        if (remainingConcepts.isNotEmpty()) {
-                                currentConcept = remainingConcepts.removeAt(0)
-                        }
-
-                        chat.value = AILogic.startGameSession(deckTitle)
-
-                        // Seed the chat with the first concept silently as a system prompt, so
-                        // Gemini starts
-                        // the game
-                        val term =
-                                currentConcept?.get("term")?.toString() ?: currentConcept?.get("original")?.toString() ?: ""
-                        val definition =
-                                currentConcept?.get("definition")?.toString()
-                                        ?: currentConcept?.get("translation")?.toString() ?: ""
-
-                        val seedText =
-                                "Start the game. The first target term is '$term' and its definition is '$definition'. Start the round by asking what word you are thinking of. Keep it brief."
-
-                        val seedTextNoImage =
-                                "Start the game. We are playing a game guessing concepts from '$deckTitle'. The first target term is '$term' and its definition is '$definition'. There is NO image. You must start the round by giving the user the definition: '$definition', and asking them what word fits it. Keep it brief."
-
-                        val imageSource = (currentConcept?.get("imageArt") as? String) ?: (currentConcept?.get("image") as? String) ?: ""
-                        val finalSeedText = if (imageSource.isNotBlank()) seedText else seedTextNoImage
-
-                        coroutineScope.launch {
-                                isSubmitting = true
-                                try {
-                                        val response = chat.value?.sendMessage(finalSeedText)
-                                        messages.add(
-                                                ChatMessage(
-                                                        isUser = false,
-                                                        text = response?.text
-                                                                        ?: "Welcome to the game!"
-                                                )
-                                        )
-                                        timeRemaining = 60
-                                        isTimerRunning = true
-                                } catch (e: Exception) {
-                                        messages.add(
-                                                ChatMessage(
-                                                        isUser = false,
-                                                        text = "Error starting chat: ${e.message}"
-                                                )
-                                        )
-                                } finally {
-                                        isSubmitting = false
-                                }
-                        }
-
-                        isLoading = false
-                } catch (e: Exception) {
-                        e.printStackTrace()
-                        navController.popBackStack()
-                }
-        }
-
-        if (isLoading) {
-                Scaffold { innerPadding ->
-                        Box(
-                                modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(MaterialTheme.colorScheme.background)
-                                        .padding(innerPadding),
-                                contentAlignment = Alignment.Center
-                        ) {
-                                CircularProgressIndicator()
-                        }
-                }
-                return
-        }
-
-        if ((currentConcept == null && remainingConcepts.isEmpty() && !isLoading) || isGameOver) {
-                LaunchedEffect(Unit) {
-                        try {
-                                val uid = FirebaseManager.auth.currentUser?.uid
-                                if (uid != null) {
-                                        val scoreRef =
-                                                FirebaseManager.firestore
-                                                        .collection("Users")
-                                                        .document(uid)
-                                                        .collection("User_Scores")
-                                                        .document(deckId)
-
-                                        val currentBest =
-                                                scoreRef.get().await().getLong("bestScore") ?: 0L
-                                        if (score > currentBest) {
-                                                scoreRef.set(
-                                                                mapOf(
-                                                                        "bestScore" to score,
-                                                                        "lastPlayed" to
-                                                                                FieldValue
-                                                                                        .serverTimestamp()
-                                                                )
-                                                        )
-                                                        .await()
-                                        }
-                                }
-                        } catch (e: Exception) {
-                                e.printStackTrace()
-                        }
-                }
-
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                        if (isGameOver) "Game Over" else "Deck Complete!",
-                                        style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.ExtraBold),
-                                        color = MaterialTheme.colorScheme.primary
-                                )
-                                Surface(
-                                    shape = Shapes.large,
-                                    modifier = Modifier.padding(top = 16.dp).clip(Shapes.large).background(MemoGradientBrush)
-                                ) {
-                                    Text(
-                                            "Final Score: $score",
-                                            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                                            color = Color.White,
-                                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
-                                    )
-                                }
-                                Text(
-                                        "Terms Guessed: $termsGuessed",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        modifier = Modifier.padding(top = 16.dp),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(32.dp))
-                                Button(
-                                    onClick = { navController.popBackStack() },
-                                    shape = Shapes.medium
-                                ) {
-                                        Text("Return to Hub", modifier = Modifier.padding(8.dp))
-                                }
-                        }
-                }
-                return
-        }
-
-        Box(modifier = Modifier.fillMaxSize()) {
-                Column(
-                        modifier =
-                                Modifier.fillMaxSize()
-                                        .background(MaterialTheme.colorScheme.background)
+    if (uiState.isGameOver || (uiState.sessionTotalItems > 0 && uiState.remainingCount == 0 && uiState.currentConcept == null)) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    "Game Over",
+                    style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.ExtraBold),
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Surface(
+                    shape = Shapes.large,
+                    modifier = Modifier.padding(top = 16.dp).clip(Shapes.large).background(MemoGradientBrush)
                 ) {
-                        // Top Bar
-                        TopAppBar(
-                                title = {
-                                        Column {
-                                                Text(
-                                                        text = deckTitle,
-                                                        style = MaterialTheme.typography.labelMedium,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        maxLines = 1,
-                                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                                                )
-                                                Text(
-                                                        "Score: $score",
-                                                        style = MaterialTheme.typography.titleLarge,
-                                                        fontWeight = FontWeight.Bold
-                                                )
-                                        }
-                                },
-                                navigationIcon = {
-                                        IconButton(onClick = { isGameOver = true }) {
-                                                Icon(
-                                                        imageVector = Icons.Filled.Close,
-                                                        contentDescription = "Quit Game"
-                                                )
-                                        }
-                                },
-                                actions = {
-                                        Text(
-                                                text = "Time: ${timeRemaining}s",
-                                                modifier = Modifier.padding(end = 16.dp),
-                                                style = MaterialTheme.typography.titleMedium,
-                                                color =
-                                                        if (timeRemaining <= 10)
-                                                                MaterialTheme.colorScheme.error
-                                                        else
-                                                                MaterialTheme.colorScheme
-                                                                        .onSurfaceVariant
-                                        )
-                                },
-                                colors =
-                                        TopAppBarDefaults.topAppBarColors(
-                                                containerColor =
-                                                        MaterialTheme.colorScheme.surfaceVariant
-                                        )
+                    Text(
+                        "Final Score: ${uiState.score}",
+                        style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                    )
+                }
+                Text(
+                    "Terms Guessed: ${uiState.termsGuessed}",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 16.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+                Button(
+                    onClick = { navController.popBackStack() },
+                    shape = Shapes.medium
+                ) {
+                    Text("Return to Hub", modifier = Modifier.padding(8.dp))
+                }
+            }
+        }
+        return
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+        ) {
+            // Top Bar
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = uiState.deckTitle,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
+                        Text(
+                            "Score: ${uiState.score}",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = { viewModel.quit() }) {
+                        Icon(imageVector = Icons.Filled.Close, contentDescription = "Quit Game")
+                    }
+                },
+                actions = {
+                    Text(
+                        text = "Time: ${uiState.timeRemaining}s",
+                        modifier = Modifier.padding(end = 16.dp),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (uiState.timeRemaining <= 10) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            )
 
-                        // Visual Context
-                        val imageUrl =
-                                (currentConcept?.get("imageArt") as? String)
-                                        ?: (currentConcept?.get("image") as? String)
+            // Visual Context
+            val imageUrl = (uiState.currentConcept?.get("imageArt") as? String) ?: (uiState.currentConcept?.get("image") as? String)
+            if (!imageUrl.isNullOrBlank()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp).height(200.dp).clip(Shapes.large).background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = "Concept Image",
+                        modifier = Modifier.fillMaxSize().clickable { fullScreenImageUrl = imageUrl },
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
 
-                        if (!imageUrl.isNullOrBlank()) {
-                                Box(
-                                        modifier =
-                                                Modifier.fillMaxWidth()
-                                                        .padding(16.dp)
-                                                        .height(200.dp)
-                                                        .clip(Shapes.large)
-                                                        .background(
-                                                                MaterialTheme.colorScheme.surfaceVariant
-                                                        ),
-                                        contentAlignment = Alignment.Center
-                                ) {
-                                        AsyncImage(
-                                                model = imageUrl,
-                                                contentDescription = "Concept Image",
-                                                modifier = Modifier.fillMaxSize().clickable { fullScreenImageUrl = imageUrl },
-                                                contentScale = ContentScale.Crop
-                                        )
-                                }
-                        }
+            // Chat List
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
+            ) {
+                items(uiState.messages) { message ->
+                    ChatBubble(message)
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                if (uiState.isSubmitting) {
+                    item {
+                        Text(
+                            "Game Master is typing...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                }
+            }
 
-                        // Chat List
-                        LazyColumn(
-                                state = listState,
-                                modifier =
-                                        Modifier.weight(1f)
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 16.dp),
-                                contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
-                                reverseLayout = false
-                        ) {
-                                items(messages) { message ->
-                                        ChatBubble(message)
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                }
-                                if (isSubmitting) {
-                                        item {
-                                                Text(
-                                                        "Game Master is typing...",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color =
-                                                                MaterialTheme.colorScheme
-                                                                        .onSurfaceVariant
-                                                )
-                                        }
-                                }
-                        }
+            // Input Area
+            Row(
+                modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Your guess...") },
+                    singleLine = true,
+                    enabled = !uiState.isSubmitting,
+                    shape = RoundedCornerShape(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = {
+                        if (inputText.isBlank()) return@IconButton
+                        val userMsg = inputText
+                        inputText = ""
+                        viewModel.submitGuess(userMsg)
+                    },
+                    enabled = !uiState.isSubmitting && inputText.isNotBlank(),
+                    colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Send",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+        }
 
-                        // Input Area
-                        Row(
-                                modifier =
-                                        Modifier.fillMaxWidth()
-                                                .background(MaterialTheme.colorScheme.surface)
-                                                .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                        ) {
-                                OutlinedTextField(
-                                        value = inputText,
-                                        onValueChange = { inputText = it },
-                                        modifier = Modifier.weight(1f),
-                                        placeholder = { Text("Your guess...") },
-                                        singleLine = true,
-                                        enabled = !isSubmitting,
-                                        shape = RoundedCornerShape(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                IconButton(
-                                        onClick = {
-                                                if (inputText.isBlank()) return@IconButton
-                                                val userMsg = inputText
-                                                inputText = ""
-                                                messages.add(ChatMessage(true, userMsg))
-                                                isSubmitting = true
+        // Overlays
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            // Time's Up Overlay
+            AnimatedVisibility(
+                visible = uiState.timeUpAnimTrigger != null,
+                enter = fadeIn(animationSpec = tween(300)) + slideInVertically(initialOffsetY = { -it }),
+                exit = fadeOut(animationSpec = tween(300)) + slideOutVertically(targetOffsetY = { it })
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shadowElevation = 12.dp,
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 32.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("⏰ Time's Up!", style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.onErrorContainer)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "The word was: ${uiState.timeUpAnimTrigger ?: ""}",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
 
-                                                coroutineScope.launch {
-                                                        var response: com.google.firebase.ai.type.GenerateContentResponse? = null
-                                                        
-                                                        for (attempt in 1..3) {
-                                                                try {
-                                                                        response = chat.value?.sendMessage(userMsg)
-                                                                        break
-                                                                } catch (e: Exception) {
-                                                                        if (attempt == 3) throw e
-                                                                        kotlinx.coroutines.delay(1000L * attempt)
-                                                                }
-                                                        }
+            // Points Overlay
+            AnimatedVisibility(
+                visible = uiState.pointsAnimTrigger != null,
+                enter = fadeIn(animationSpec = tween(300)) + slideInVertically(initialOffsetY = { it }),
+                exit = fadeOut(animationSpec = tween(300)) + slideOutVertically(targetOffsetY = { -it })
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    shadowElevation = 12.dp,
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        "+${uiState.pointsAnimTrigger} Points!",
+                        modifier = Modifier.padding(horizontal = 32.dp, vertical = 24.dp),
+                        style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                }
+            }
+        }
+    }
 
-                                                        try {
-
-                                                                // Check for Function Calls
-                                                                if (response != null &&
-                                                                                response.functionCalls
-                                                                                        .isNotEmpty()
-                                                                ) {
-                                                                        val hasAddPoints =
-                                                                                response.functionCalls
-                                                                                        .any {
-                                                                                                it.name ==
-                                                                                                        "add_points"
-                                                                                        }
-                                                                        val hasNextConcept =
-                                                                                response.functionCalls
-                                                                                        .any {
-                                                                                                it.name ==
-                                                                                                        "next_concept"
-                                                                                        }
-                                                                        if (hasAddPoints ||
-                                                                                        hasNextConcept
-                                                                        ) {
-                                                                                isTimerRunning =
-                                                                                        false
-                                                                        }
-
-                                                                        val functionResponses =
-                                                                                response.functionCalls
-                                                                                        .map {
-                                                                                                functionCall
-                                                                                                ->
-                                                                                                if (functionCall
-                                                                                                                .name ==
-                                                                                                                "add_points"
-                                                                                                ) {
-                                                                                                        val pointsObj =
-                                                                                                                functionCall
-                                                                                                                        .args[
-                                                                                                                        "points"]
-                                                                                                        if (pointsObj is
-                                                                                                                        kotlinx.serialization.json.JsonPrimitive
-                                                                                                        ) {
-                                                                                                                val p =
-                                                                                                                        pointsObj
-                                                                                                                                .content
-                                                                                                                                .toIntOrNull()
-                                                                                                                                ?: 0
-                                                                                                                score +=
-                                                                                                                        p
-                                                                                                                pointsAnimTrigger =
-                                                                                                                        p
-                                                                                                                if (p >
-                                                                                                                                0
-                                                                                                                )
-                                                                                                                        termsGuessed +=
-                                                                                                                                1
-                                                                                                        }
-                                                                                                        FunctionResponsePart(
-                                                                                                                "add_points",
-                                                                                                                JsonObject(
-                                                                                                                        mapOf(
-                                                                                                                                "status" to
-                                                                                                                                        JsonPrimitive(
-                                                                                                                                                "points_added"
-                                                                                                                                        )
-                                                                                                                        )
-                                                                                                                )
-                                                                                                        )
-                                                                                                } else if (functionCall
-                                                                                                                .name ==
-                                                                                                                "next_concept"
-                                                                                                ) {
-                                                                                                        messages.clear()
-                                                                                                        if (remainingConcepts
-                                                                                                                        .isNotEmpty()
-                                                                                                        ) {
-                                                                                                                currentConcept =
-                                                                                                                        remainingConcepts
-                                                                                                                                .removeAt(
-                                                                                                                                        0
-                                                                                                                                )
-
-                                                                                                                // Handle Economy Billing
-                                                                                                                val playedCount =
-                                                                                                                        sessionTotalItems -
-                                                                                                                                remainingConcepts
-                                                                                                                                        .size
-                                                                                                                if (!hasPaidForSession &&
-                                                                                                                                sessionTotalItems >
-                                                                                                                                        0 &&
-                                                                                                                                playedCount >=
-                                                                                                                                        (sessionTotalItems /
-                                                                                                                                                2)
-                                                                                                                ) {
-                                                                                                                        hasPaidForSession =
-                                                                                                                                true
-                                                                                                                        val uid =
-                                                                                                                                FirebaseManager
-                                                                                                                                        .auth
-                                                                                                                                        .currentUser
-                                                                                                                                        ?.uid
-                                                                                                                        if (uid !=
-                                                                                                                                        null
-                                                                                                                        ) {
-                                                                                                                                val userRef =
-                                                                                                                                        FirebaseManager
-                                                                                                                                                .firestore
-                                                                                                                                                .collection(
-                                                                                                                                                        "Users"
-                                                                                                                                                )
-                                                                                                                                                .document(
-                                                                                                                                                        uid
-                                                                                                                                                )
-                                                                                                                                try {
-                                                                                                                                        if (energyBolts >=
-                                                                                                                                                        1
-                                                                                                                                        ) {
-                                                                                                                                                userRef.update(
-                                                                                                                                                                "energy_bolts",
-                                                                                                                                                                energyBolts -
-                                                                                                                                                                        1
-                                                                                                                                                        )
-                                                                                                                                                        .await()
-                                                                                                                                        } else {
-                                                                                                                                                navController
-                                                                                                                                                        .navigate(
-                                                                                                                                                                "billing"
-                                                                                                                                                        )
-                                                                                                                                        }
-                                                                                                                                } catch (
-                                                                                                                                        e:
-                                                                                                                                                Exception) {
-                                                                                                                                        e.printStackTrace()
-                                                                                                                                }
-
-                                                                                                                                if (deckOwnerId !=
-                                                                                                                                                null &&
-                                                                                                                                                deckOwnerId !=
-                                                                                                                                                        uid
-                                                                                                                                ) {
-                                                                                                                                        try {
-                                                                                                                                                val creatorRef =
-                                                                                                                                                        FirebaseManager
-                                                                                                                                                                .firestore
-                                                                                                                                                                .collection(
-                                                                                                                                                                        "Users"
-                                                                                                                                                                )
-                                                                                                                                                                .document(
-                                                                                                                                                                        deckOwnerId!!
-                                                                                                                                                                )
-                                                                                                                                                val creatorSnap =
-                                                                                                                                                        creatorRef
-                                                                                                                                                                .get()
-                                                                                                                                                                .await()
-                                                                                                                                                if (creatorSnap
-                                                                                                                                                                .exists()
-                                                                                                                                                ) {
-                                                                                                                                                        val creatorBolts =
-                                                                                                                                                                creatorSnap
-                                                                                                                                                                        .getLong(
-                                                                                                                                                                                "energy_bolts"
-                                                                                                                                                                        )
-                                                                                                                                                                        ?: 0L
-                                                                                                                                                        creatorRef
-                                                                                                                                                                .update(
-                                                                                                                                                                        "energy_bolts",
-                                                                                                                                                                        creatorBolts +
-                                                                                                                                                                                1
-                                                                                                                                                                )
-                                                                                                                                                                .await()
-                                                                                                                                                }
-                                                                                                                                        } catch (
-                                                                                                                                                e:
-                                                                                                                                                        Exception) {
-                                                                                                                                                e.printStackTrace()
-                                                                                                                                        }
-                                                                                                                                }
-                                                                                                                        }
-                                                                                                                }
-
-                                                                                                                val nextImg = currentConcept?.get("imageArt") ?: currentConcept?.get("image")
-                                                                                                                val hasImg = if (nextImg != null && nextImg.toString().isNotBlank()) "true" else "false"
-                                                                                                                
-                                                                                                                FunctionResponsePart(
-                                                                                                                        "next_concept",
-                                                                                                                        JsonObject(
-                                                                                                                                mapOf(
-                                                                                                                                        "status" to
-                                                                                                                                                JsonPrimitive(
-                                                                                                                                                        "advanced"
-                                                                                                                                                ),
-                                                                                                                                        "nextTargetTerm" to
-                                                                                                                                                JsonPrimitive(
-                                                                                                                                                        (currentConcept
-                                                                                                                                                                        ?.get(
-                                                                                                                                                                                "term"
-                                                                                                                                                                        )
-                                                                                                                                                                        ?: currentConcept
-                                                                                                                                                                                ?.get(
-                                                                                                                                                                                        "original"
-                                                                                                                                                                                ))
-                                                                                                                                                                .toString()
-                                                                                                                                                ),
-                                                                                                                                        "nextDefinition" to
-                                                                                                                                                JsonPrimitive(
-                                                                                                                                                        (currentConcept
-                                                                                                                                                                        ?.get(
-                                                                                                                                                                                "definition"
-                                                                                                                                                                        )
-                                                                                                                                                                        ?: currentConcept
-                                                                                                                                                                                ?.get(
-                                                                                                                                                                                        "translation"
-                                                                                                                                                                                ))
-                                                                                                                                                                .toString()
-                                                                                                                                                ),
-                                                                                                                                        "imageSource" to
-                                                                                                                                                JsonPrimitive(
-                                                                                                                                                        hasImg
-                                                                                                                                                )
-                                                                                                                                )
-                                                                                                                        )
-                                                                                                                )
-                                                                                                        } else {
-                                                                                                                currentConcept =
-                                                                                                                        null
-                                                                                                                FunctionResponsePart(
-                                                                                                                        "next_concept",
-                                                                                                                        JsonObject(
-                                                                                                                                mapOf(
-                                                                                                                                        "status" to
-                                                                                                                                                JsonPrimitive(
-                                                                                                                                                        "game_over"
-                                                                                                                                                )
-                                                                                                                                )
-                                                                                                                        )
-                                                                                                                )
-                                                                                                        }
-                                                                                                } else {
-                                                                                                        FunctionResponsePart(
-                                                                                                                functionCall
-                                                                                                                        .name,
-                                                                                                                JsonObject(
-                                                                                                                        mapOf(
-                                                                                                                                "status" to
-                                                                                                                                        JsonPrimitive(
-                                                                                                                                                "unknown"
-                                                                                                                                        )
-                                                                                                                        )
-                                                                                                                )
-                                                                                                        )
-                                                                                                }
-                                                                                        }
-
-                                                                        val finalResponse =
-                                                                                chat.value
-                                                                                        ?.sendMessage(
-                                                                                                content(
-                                                                                                        "function"
-                                                                                                ) {
-                                                                                                        functionResponses
-                                                                                                                .forEach {
-                                                                                                                        part(
-                                                                                                                                it
-                                                                                                                        )
-                                                                                                                }
-                                                                                                }
-                                                                                        )
-                                                                        val responseText = finalResponse?.text
-                                                                        if (!responseText.isNullOrBlank()) {
-                                                                                messages.add(
-                                                                                        ChatMessage(
-                                                                                                false,
-                                                                                                responseText
-                                                                                        )
-                                                                                )
-                                                                        }
-                                                                        if (hasNextConcept &&
-                                                                                        currentConcept !=
-                                                                                                null
-                                                                        ) {
-                                                                                timeRemaining = 60
-                                                                                isTimerRunning =
-                                                                                        true
-                                                                        } else if (hasAddPoints) {
-                                                                                isTimerRunning =
-                                                                                        true
-                                                                        }
-                                                                } else {
-                                                                        messages.add(
-                                                                                ChatMessage(
-                                                                                        false,
-                                                                                        response?.text
-                                                                                                ?: "No response."
-                                                                                )
-                                                                        )
-                                                                }
-                                                        } catch (e: Exception) {
-                                                                e.printStackTrace()
-                                                                inputText = userMsg
-                                                                messages.removeLastOrNull() // Remove optimistic user message
-                                                                // If we really need to show an error bubble:
-                                                                messages.add(
-                                                                        ChatMessage(
-                                                                                false,
-                                                                                "Connection unstable. Please try sending that again!"
-                                                                        )
-                                                                )
-                                                        } finally {
-                                                                isSubmitting = false
-                                                        }
-                                                }
-                                        },
-                                        enabled = !isSubmitting && inputText.isNotBlank(),
-                                        colors =
-                                                IconButtonDefaults.iconButtonColors(
-                                                        containerColor =
-                                                                MaterialTheme.colorScheme.primary
-                                                )
-                                ) {
-                                        Icon(
-                                                Icons.AutoMirrored.Filled.Send,
-                                                contentDescription = "Send",
-                                                tint = MaterialTheme.colorScheme.onPrimary
-                                        )
-                                }
-                        } // End Row
-                } // End Column
-
-                // Time's Up Overlay
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        AnimatedVisibility(
-                                visible = timeUpAnimTrigger != null,
-                                enter =
-                                        fadeIn(animationSpec = tween(300)) +
-                                                slideInVertically(initialOffsetY = { -it }),
-                                exit =
-                                        fadeOut(animationSpec = tween(300)) +
-                                                slideOutVertically(targetOffsetY = { it })
-                        ) {
-                                Surface(
-                                        shape = RoundedCornerShape(24.dp),
-                                        color = MaterialTheme.colorScheme.errorContainer,
-                                        shadowElevation = 12.dp,
-                                        modifier = Modifier.padding(16.dp)
-                                ) {
-                                        Column(
-                                                modifier = Modifier.padding(horizontal = 32.dp, vertical = 24.dp),
-                                                horizontalAlignment = Alignment.CenterHorizontally
-                                        ) {
-                                                Text(
-                                                        "⏰ Time's Up!",
-                                                        style = MaterialTheme.typography.displayMedium,
-                                                        color = MaterialTheme.colorScheme.onErrorContainer
-                                                )
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                                Text(
-                                                        "The correct word was: ${timeUpAnimTrigger ?: ""}",
-                                                        style = MaterialTheme.typography.titleLarge,
-                                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                                        fontWeight = FontWeight.Bold
-                                                )
-                                        }
-                                }
-                        }
-
-                        // Points Overlay
-                        AnimatedVisibility(
-                                visible = pointsAnimTrigger != null,
-                                enter =
-                                        fadeIn(animationSpec = tween(300)) +
-                                                slideInVertically(initialOffsetY = { it }),
-                                exit =
-                                        fadeOut(animationSpec = tween(300)) +
-                                                slideOutVertically(targetOffsetY = { -it })
-                        ) {
-                                Surface(
-                                        shape = RoundedCornerShape(24.dp),
-                                        color = MaterialTheme.colorScheme.tertiaryContainer,
-                                        shadowElevation = 12.dp,
-                                        modifier = Modifier.padding(16.dp)
-                                ) {
-                                        Text(
-                                                "+${pointsAnimTrigger} Points!",
-                                                modifier =
-                                                        Modifier.padding(
-                                                                horizontal = 32.dp,
-                                                                vertical = 24.dp
-                                                        ),
-                                                style =
-                                                        MaterialTheme.typography.displayLarge.copy(
-                                                                fontWeight = FontWeight.Bold
-                                                        ),
-                                                color =
-                                                        MaterialTheme.colorScheme
-                                                                .onTertiaryContainer
-                                        )
-                                }
-                        }
-                } // End Overlay Box
-        } // End Main Box
-} // End GameSessionScreen
+    if (fullScreenImageUrl != null) {
+        FullScreenImageViewer(imageUrl = fullScreenImageUrl!!) { fullScreenImageUrl = null }
+    }
+}
 
 @Composable
 fun ChatBubble(message: ChatMessage) {
-        Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
+    ) {
+        Box(
+            modifier = Modifier
+                .widthIn(max = 280.dp)
+                .clip(Shapes.medium)
+                .then(
+                    if (message.isUser) Modifier.background(MemoGradientBrush)
+                    else Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
+                )
+                .padding(14.dp)
         ) {
-                Box(
-                        modifier =
-                                Modifier.widthIn(max = 280.dp)
-                                        .clip(Shapes.medium)
-                                        .let {
-                                            if (message.isUser) {
-                                                it.background(MemoGradientBrush)
-                                            } else {
-                                                it.background(MaterialTheme.colorScheme.surfaceVariant)
-                                            }
-                                        }
-                                        .padding(14.dp)
-                ) {
-                        Text(
-                                text = message.text,
-                                color =
-                                        if (message.isUser)
-                                                Color.White
-                                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyLarge
-                        )
-                }
+            Text(
+                text = message.text,
+                color = if (message.isUser) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyLarge
+            )
         }
+    }
 }

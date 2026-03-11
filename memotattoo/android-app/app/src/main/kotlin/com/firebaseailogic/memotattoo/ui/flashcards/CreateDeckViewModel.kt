@@ -1,10 +1,15 @@
 package com.firebaseailogic.memotattoo.ui.flashcards
 
+import android.util.Base64
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.firebaseailogic.memotattoo.ai.AILogic
 import com.firebaseailogic.memotattoo.ai.IAILogic
 import com.firebaseailogic.memotattoo.data.FirebaseManager
+import com.firebaseailogic.memotattoo.data.FlashcardRepository
+import com.firebaseailogic.memotattoo.data.IFlashcardRepository
+import com.firebaseailogic.memotattoo.data.IUserRepository
+import com.firebaseailogic.memotattoo.data.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -15,20 +20,21 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
-import android.util.Base64
 
 class CreateDeckViewModel(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage,
-    private val aiLogic: IAILogic
+    private val aiLogic: IAILogic,
+    private val repository: IFlashcardRepository,
+    private val userRepository: IUserRepository
 ) : ViewModel() {
 
     constructor() : this(
         auth = FirebaseManager.auth,
         firestore = FirebaseManager.firestore,
-        storage = FirebaseManager.storage,
-        aiLogic = AILogic
+        aiLogic = AILogic,
+        repository = FlashcardRepository(),
+        userRepository = UserRepository()
     )
 
     private val _uiState = MutableStateFlow(DraftState())
@@ -46,21 +52,21 @@ class CreateDeckViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val doc = firestore.collection("FlashcardDecks").document(draftId).get().await()
-                if (doc.exists()) {
+                val data = repository.getDeck(draftId)
+                if (data != null) {
                     @Suppress("UNCHECKED_CAST")
-                    val contentBase = doc.get("contentBase") as? Map<String, Any>
-                    val title = contentBase?.get("title") as? String ?: doc.getString("title") ?: ""
-                    val topic = doc.getString("topic") ?: ""
+                    val contentBase = data["contentBase"] as? Map<String, Any>
+                    val title = contentBase?.get("title") as? String ?: data["title"]?.toString() ?: ""
+                    val topic = data["topic"]?.toString() ?: ""
                     
                     @Suppress("UNCHECKED_CAST")
-                    val rootItems = doc.get("items") as? List<Map<String, Any>> ?: emptyList()
+                    val rootItems = data["items"] as? List<Map<String, Any>> ?: emptyList()
                     @Suppress("UNCHECKED_CAST")
                     val baseItems = contentBase?.get("items") as? List<Map<String, Any>> ?: emptyList()
                     val items = if (baseItems.isNotEmpty()) baseItems else rootItems
 
-                    val artDir = doc.getString("artDirection") ?: ""
-                    val artRef = doc.getString("artReferenceImage")
+                    val artDir = data["artDirection"]?.toString() ?: ""
+                    val artRef = data["artReferenceImage"]?.toString()
                     
                     val parsedConcepts = items.map { 
                         ConceptDraft(
@@ -156,22 +162,23 @@ class CreateDeckViewModel(
         }
 
         viewModelScope.launch {
+            android.util.Log.d("AILogic", "Brainstorm started for topic: $topic")
             _isLoading.value = true
             _errorMessage.value = null
             try {
                 val uid = auth.currentUser?.uid ?: throw Exception("Not logged in")
-                val userDoc = firestore.collection("Users").document(uid).get().await()
-                val energyBolts = userDoc.getLong("energy_bolts") ?: 0
+                android.util.Log.d("AILogic", "Attempting to consume bolts for uid: $uid")
                 
-                if (energyBolts < 1) {
+                val success = userRepository.consumeBolts(uid, 1)
+                android.util.Log.d("AILogic", "Consume bolts result: $success")
+                if (!success) {
                     throw Exception("Insufficient bolts. Please top up.")
                 }
 
                 val count = countStr.toIntOrNull() ?: 5
+                android.util.Log.d("AILogic", "Calling aiLogic.generateTopic(topic=$topic, count=$count)")
                 val result = aiLogic.generateTopic(topic, count)
-
-                // Deduct bolt
-                firestore.collection("Users").document(uid).update("energy_bolts", energyBolts - 1).await()
+                android.util.Log.d("AILogic", "aiLogic.generateTopic result received")
 
                 val newTitle = result["title"] as? String ?: "$topic Essentials"
                 @Suppress("UNCHECKED_CAST")
@@ -211,12 +218,11 @@ class CreateDeckViewModel(
         }
     }
 
-    fun generateImage(index: Int, isPro: Boolean, energyBolts: Int, generatedThisMonth: Int) {
+    fun generateImage(index: Int, isPro: Boolean, generatedThisMonth: Int) {
         val state = _uiState.value
         val concept = state.concepts.getOrNull(index) ?: return
         if (concept.isGeneratingImage) return
 
-        // Update state to show loading for THIS concept
         _uiState.update {
             val updated = it.concepts.toMutableList()
             updated[index] = updated[index].copy(isGeneratingImage = true)
@@ -225,13 +231,16 @@ class CreateDeckViewModel(
 
         viewModelScope.launch {
             try {
-                if (isPro) {
-                    if (generatedThisMonth >= 100) throw Exception("Monthly limit reached")
-                    if (energyBolts < 1) throw Exception("Insufficient bolts")
-                } else {
-                    if (energyBolts < 3) throw Exception("Insufficient bolts")
-                }
+                val uid = auth.currentUser?.uid ?: throw Exception("Not logged in")
+                val boltsToDeduct = if (isPro) 1 else 3
 
+                if (isPro && generatedThisMonth >= 100) throw Exception("Monthly limit reached")
+                
+                val success = userRepository.consumeBolts(uid, boltsToDeduct)
+                android.util.Log.d("AILogic", "Consume bolts for image: $success")
+                if (!success) throw Exception("Insufficient bolts")
+
+                android.util.Log.d("AILogic", "Calling aiLogic.generateConceptImage for ${concept.term}")
                 var url = aiLogic.generateConceptImage(
                     title = state.title,
                     term = concept.term,
@@ -240,23 +249,14 @@ class CreateDeckViewModel(
                 )
 
                 if (url.startsWith("data:image/jpeg;base64,")) {
+                    android.util.Log.d("AILogic", "Image received as base64, uploading to Storage...")
                     val b64 = url.substringAfter("base64,")
                     val bytes = Base64.decode(b64, Base64.DEFAULT)
-                    val storageRef = storage.reference.child("drafts/${UUID.randomUUID()}.jpg")
-                    storageRef.putBytes(bytes).await()
-                    url = storageRef.downloadUrl.await().toString()
+                    url = repository.uploadImage(bytes)
+                    android.util.Log.d("AILogic", "Image uploaded successfully: $url")
                 }
 
-                // Deduct bolts and increment monthly count
-                auth.currentUser?.uid?.let { uid ->
-                    val boltsToDeduct = if (isPro) 1 else 3
-                    firestore.collection("Users").document(uid).update(
-                        mapOf(
-                            "energy_bolts" to (energyBolts - boltsToDeduct),
-                            "imagesGeneratedThisMonth" to com.google.firebase.firestore.FieldValue.increment(1)
-                        )
-                    ).await()
-                }
+                userRepository.incrementImageCount(uid)
 
                 _uiState.update {
                     val updated = it.concepts.toMutableList()
@@ -314,13 +314,8 @@ class CreateDeckViewModel(
                     "artReferenceImage" to (state.globalArtImageUri ?: "")
                 )
                 
-                val docRef = if (state.draftId != null) {
-                    firestore.collection("FlashcardDecks").document(state.draftId!!)
-                } else {
-                    firestore.collection("FlashcardDecks").document()
-                }
-                
-                docRef.set(deckData).await()
+                val docId = repository.saveDeck(state.draftId, deckData)
+                _uiState.update { it.copy(draftId = docId) }
                 onComplete()
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to save: ${e.message}"

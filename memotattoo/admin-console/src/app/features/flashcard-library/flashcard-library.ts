@@ -1,25 +1,9 @@
 import { Component, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { firestore } from '../../core/firebase/firebase';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { ActivityLogService } from '../../core/services/activity-log.service';
-
-interface FlashcardDeck {
-  id: string;
-  topic: string;
-  previewImages: string[];
-  publishedAt: string;
-  status: 'draft' | 'published' | 'unpublished' | 'locked' | 'pending' | 'private';
-  owner_email?: string;
-  items?: any[];
-  contentBase: any;
-  artDirection?: string;
-  artDirectionImage?: string;
-  owner_id?: string;
-  isPublic?: boolean;
-}
+import { FlashcardService, FlashcardDeck } from '../../core/services/flashcard.service';
 
 @Component({
   selector: 'app-flashcard-library',
@@ -53,10 +37,10 @@ interface FlashcardDeck {
         @for (deck of filteredDecks(); track deck.id) {
           <div class="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden shadow-lg flex flex-col transition-all hover:border-slate-500 hover:shadow-xl">
             <!-- Header Image -->
-            <div class="h-64 w-full bg-slate-950 relative p-2 cursor-pointer group" (click)="deck.previewImages.length && openImageViewer(deck, 0)">
-              @if (deck.previewImages.length === 1) {
+            <div class="h-64 w-full bg-slate-950 relative p-2 cursor-pointer group" (click)="deck.previewImages.length > 0 && openImageViewer(deck, 0)">
+              @if (deck.previewImages && deck.previewImages.length === 1) {
                 <img [src]="deck.previewImages[0]" class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02]">
-              } @else if (deck.previewImages.length > 1) {
+              } @else if (deck.previewImages && deck.previewImages.length > 1) {
                 <div class="w-full h-full grid gap-1 relative overflow-hidden" [ngClass]="{
                    'grid-cols-2': deck.previewImages.length === 2,
                    'grid-cols-2 grid-rows-2': deck.previewImages.length > 2
@@ -126,7 +110,7 @@ interface FlashcardDeck {
                 <!-- Destructive / Edit Actions -->
                 <div class="flex gap-2">
                   <button class="flex-1 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 font-bold text-sm rounded-lg transition-colors border border-emerald-500/20 disabled:opacity-50"
-                          [disabled]="deck.status === 'locked' || deck.previewImages.length === 0" (click)="playDeck(deck)">
+                          [disabled]="deck.status === 'locked' || (deck.previewImages.length === 0 && (!deck.items || deck.items.length === 0))" (click)="playDeck(deck)">
                     Play
                   </button>
                   <button class="flex-1 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 font-bold text-sm rounded-lg transition-colors border border-blue-500/20 disabled:opacity-50"
@@ -237,43 +221,15 @@ export class FlashcardLibrary implements OnInit {
     confirmText: string;
   } | null>(null);
 
-  constructor(private logger: ActivityLogService, private router: Router) { }
+  constructor(
+    private logger: ActivityLogService, 
+    private router: Router,
+    private flashcardService: FlashcardService
+  ) { }
 
   ngOnInit() {
-    const q = query(collection(firestore, 'FlashcardDecks'));
-    onSnapshot(q, (snap) => {
-      const data: FlashcardDeck[] = [];
-      snap.forEach(docSnap => {
-        const d = docSnap.data();
-
-        const items = d['items'] || d['contentBase']?.items || [];
-        const previewImages = items
-          .map((item: any) => item.image || item.imageArt)
-          .filter((url: string) => !!url);
-
-        data.push({
-          id: docSnap.id,
-          topic: d['topic'],
-          owner_email: d['owner_email'],
-          previewImages: previewImages,
-          publishedAt: d['publishedAt'],
-          status: d['status'] || 'draft',
-          contentBase: d['contentBase'] || { items },
-          artDirection: d['artDirection'],
-          artDirectionImage: d['artDirectionImage'],
-          owner_id: d['owner_id'],
-          isPublic: d['isPublic'] !== undefined ? d['isPublic'] : (d['status'] === 'published')
-        });
-      });
-      data.sort((a, b) => {
-        const timeA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
-        const timeB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-        return timeB - timeA;
-      });
-      this.decks.set(data);
-      this.isLoading.set(false);
-    }, (error) => {
-      console.error("Error subscribing to Library:", error);
+    this.flashcardService.getDecks().subscribe(decks => {
+      this.decks.set(decks);
       this.isLoading.set(false);
     });
   }
@@ -281,10 +237,7 @@ export class FlashcardLibrary implements OnInit {
   async executeStatusUpdate(id: string, newStatus: string) {
     try {
       const isPublic = newStatus === 'published';
-      await updateDoc(doc(firestore, 'FlashcardDecks', id), { 
-        status: newStatus,
-        isPublic: isPublic
-      });
+      await this.flashcardService.updateStatus(id, newStatus, isPublic);
       this.logger.info('Status Updated', `Changed library deck ${id} status to ${newStatus} (isPublic: ${isPublic})`);
     } catch (e: any) {
       this.logger.error('Status Update Failed', `Failed to update deck ${id} status to ${newStatus}`, e);
@@ -304,8 +257,12 @@ export class FlashcardLibrary implements OnInit {
   }
 
   playDeck(deck: any) {
-    if (deck.status !== 'locked' && deck.previewImages.length > 0) {
+    const hasImages = (deck.previewImages && deck.previewImages.length > 0) || 
+                      (deck.items && deck.items.some((i: any) => i.imageArt || i.image));
+    if (deck.status !== 'locked' && hasImages) {
       this.router.navigate(['/game', deck.id]);
+    } else if (!hasImages) {
+      alert("This deck doesn't have any images yet. Generate some in the Studio first!");
     }
   }
 
@@ -327,7 +284,7 @@ export class FlashcardLibrary implements OnInit {
     // Execute the appropriate action based on the state variable
     if (action.type === 'delete') {
       try {
-        await deleteDoc(doc(firestore, 'FlashcardDecks', action.id));
+        await this.flashcardService.deleteDeck(action.id);
         this.logger.info('Deleted Deck', `Permanently deleted library deck ${action.id}`);
       } catch (e: any) {
         this.logger.error('Delete Deck Failed', `Failed to delete library deck ${action.id}`, e);
@@ -335,7 +292,7 @@ export class FlashcardLibrary implements OnInit {
       }
     } else if (action.type === 'unlock') {
       try {
-        await updateDoc(doc(firestore, 'FlashcardDecks', action.id), { status: 'draft' });
+        await this.flashcardService.updateStatus(action.id, 'draft', false);
         this.logger.warning('Unlocked Deck', `Unlocked library deck ${action.id} to Draft status`);
       } catch (e: any) {
         this.logger.error('Unlock Deck Failed', `Failed to unlock library deck ${action.id}`, e);

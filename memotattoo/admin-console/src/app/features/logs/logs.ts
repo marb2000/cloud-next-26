@@ -1,9 +1,8 @@
-import { Component, signal, OnInit, OnDestroy, computed } from '@angular/core';
+import { Component, signal, OnInit, OnDestroy, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { firestore } from '../../core/firebase/firebase';
-import { collection, query, orderBy, onSnapshot, limit, Unsubscribe, getDocs, writeBatch } from 'firebase/firestore';
-import { ActivityLog, LogIntent } from '../../core/services/activity-log.service';
+import { ActivityLog, LogIntent, ActivityLogService } from '../../core/services/activity-log.service';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-logs',
@@ -181,21 +180,20 @@ export class LogsComponent implements OnInit, OnDestroy {
     return result;
   });
 
-  private unsub: Unsubscribe | null = null;
+  private logService = inject(ActivityLogService);
+  private subscription: Subscription | null = null;
 
   ngOnInit() {
-    const q = query(collection(firestore, 'ActivityLogs'), orderBy('timestamp', 'desc'), limit(150));
-    this.unsub = onSnapshot(q, (snap) => {
-      const data: (ActivityLog & { id: string })[] = [];
-      snap.forEach(docSnap => {
-        const d = docSnap.data() as ActivityLog;
-        data.push({ ...d, id: docSnap.id });
-      });
-      this.logs.set(data);
-      this.isLoading.set(false);
-    }, (error) => {
-      console.error("Failed to subscribe to Activity Logs:", error);
-      this.isLoading.set(false);
+    this.isLoading.set(true);
+    this.subscription = this.logService.getLogs(150).subscribe({
+      next: (data) => {
+        this.logs.set(data);
+        this.isLoading.set(false);
+      },
+      error: (error) => {
+        console.error("Failed to subscribe to Activity Logs:", error);
+        this.isLoading.set(false);
+      }
     });
   }
 
@@ -204,30 +202,9 @@ export class LogsComponent implements OnInit, OnDestroy {
     this.isLoading.set(true);
 
     try {
-      // NOTE: For a large collection, dropping all documents client-side requires batching. 
-      // Firestore limits batch operations to 500. We will recursively delete in batches until empty.
-      let numDeleted = 0;
-      let hasMore = true;
-
-      while (hasMore) {
-        const q = query(collection(firestore, 'ActivityLogs'), limit(500));
-        const snapshot = await getDocs(q);
-
-        if (snapshot.size === 0) {
-          hasMore = false;
-          break;
-        }
-
-        const batch = writeBatch(firestore);
-        snapshot.docs.forEach((d) => {
-          batch.delete(d.ref);
-        });
-        await batch.commit();
-        numDeleted += snapshot.size;
-      }
-
+      const numDeleted = await this.logService.dropLogs();
       console.log(`Successfully dropped ${numDeleted} Activity Logs.`);
-      // The onSnapshot listener will automatically update the UI since the collection is now empty.
+      // The Observable will automatically update since the collection is now empty.
     } catch (err: any) {
       console.error("Failed to drop Activity Logs:", err);
       alert("Failed to drop logs: " + err.message);
@@ -237,6 +214,6 @@ export class LogsComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
-    if (this.unsub) this.unsub();
+    if (this.subscription) this.subscription.unsubscribe();
   }
 }

@@ -17,7 +17,7 @@
     <!-- LEFT: Topic Form and Data Review -->
     <div
       class="bg-slate-800 border border-slate-700 p-8 rounded-2xl shadow-xl flex flex-col h-full lg:max-h-[850px] overflow-auto">
-      <form [formGroup]="topicForm" (ngSubmit)="generateTopicContent()" class="space-y-6 flex-shrink-0">
+      <form [formGroup]="topicForm" (ngSubmit)="brainstormTopic()" class="space-y-6 bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 backdrop-blur-sm">
         <h3 class="text-xl font-bold text-purple-400 mb-4">1. Break Down Topic</h3>
         <div class="grid grid-cols-3 gap-4">
           <div class="col-span-2">

@@ -1,19 +1,10 @@
-import { Component, signal, OnInit, inject } from '@angular/core';
+import { Component, signal, OnInit, inject, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { firestore } from '../../core/firebase/firebase';
-import { collection, query, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { ActivityLogService } from '../../core/services/activity-log.service';
+import { UserManagementService, FirebaseUser } from '../../core/services/user-management.service';
 import { FormsModule } from '@angular/forms';
 import { ConfirmDialogComponent, ConfirmActionParams } from '../../shared/components/confirm-dialog/confirm-dialog.component';
-
-interface FirebaseUser {
-  id: string; // The uid
-  email: string;
-  energy_bolts: number;
-  isBanned: boolean;
-  isPro: boolean;
-  interests: string[];
-}
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-users',
@@ -127,9 +118,10 @@ interface FirebaseUser {
     ></app-confirm-dialog>
   `
 })
-export class UsersComponent implements OnInit {
+export class UsersComponent implements OnInit, OnDestroy {
   users = signal<FirebaseUser[]>([]);
   isLoading = signal<boolean>(true);
+  private subscription: Subscription | null = null;
 
   // Dialog State
   isDialogOpen = signal<boolean>(false);
@@ -139,36 +131,25 @@ export class UsersComponent implements OnInit {
   private pendingAction: (() => Promise<void>) | null = null;
 
   private logger = inject(ActivityLogService);
+  private userManagementService = inject(UserManagementService);
 
   ngOnInit() {
-    const q = query(collection(firestore, 'Users'));
-    onSnapshot(q, (snap) => {
-      const data: FirebaseUser[] = [];
-      snap.forEach(docSnap => {
-        const d = docSnap.data();
-        data.push({
-          id: docSnap.id,
-          email: d['email'] || '',
-          energy_bolts: d['energy_bolts'] || 0,
-          isBanned: d['isBanned'] || false,
-          isPro: d['isPro'] || false,
-          interests: d['interests'] || []
-        });
-      });
-      // Sort so banned users are at the bottom, then by bolts descending
-      data.sort((a, b) => {
-        if (a.isBanned === b.isBanned) {
-          return b.energy_bolts - a.energy_bolts;
-        }
-        return a.isBanned ? 1 : -1;
-      });
-
-      this.users.set(data);
-      this.isLoading.set(false);
-    }, (error) => {
-      console.error("Error subscribing to Users:", error);
-      this.isLoading.set(false);
+    this.subscription = this.userManagementService.getUsers().subscribe({
+      next: (data) => {
+        this.users.set(data);
+        this.isLoading.set(false);
+      },
+      error: (error) => {
+        console.error("Error subscribing to Users:", error);
+        this.isLoading.set(false);
+      }
     });
+  }
+
+  ngOnDestroy() {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+    }
   }
 
   async updateBolts(user: FirebaseUser, newValueStr: string) {
@@ -179,7 +160,7 @@ export class UsersComponent implements OnInit {
     if (val === user.energy_bolts) return;
 
     try {
-      await updateDoc(doc(firestore, 'Users', user.id), { energy_bolts: val });
+      await this.userManagementService.updateBolts(user.id, val);
       this.logger.info('Economy Managed', `Modified energy bolts for UID ${user.id} from ${user.energy_bolts} to ${val}`);
     } catch (e: any) {
       this.logger.error('Economy Update Failed', `Could not update bolts for ${user.id}`, e);
@@ -199,7 +180,7 @@ export class UsersComponent implements OnInit {
       intent: newStatus ? 'danger' : 'info'
     }, async () => {
       try {
-        await updateDoc(doc(firestore, 'Users', user.id), { isBanned: newStatus });
+        await this.userManagementService.setBanStatus(user.id, newStatus);
         this.logger.warning(`User ${actionName}`, `UID ${user.id} was ${actionName.toLowerCase()} by admin.`);
       } catch (e: any) {
         this.logger.error('Ban Toggle Failed', `Could not change ban status for ${user.id}`, e);
@@ -217,7 +198,7 @@ export class UsersComponent implements OnInit {
       intent: 'danger'
     }, async () => {
       try {
-        await deleteDoc(doc(firestore, 'Users', user.id));
+        await this.userManagementService.deleteUser(user.id);
         this.logger.error('User Deleted', `UID ${user.id} was permanently deleted from the database.`);
       } catch (e: any) {
         this.logger.error('Deletion Failed', `Could not delete user ${user.id}`, e);

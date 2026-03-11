@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, limit, onSnapshot, getDocs, writeBatch } from 'firebase/firestore';
 import { firestore } from '../../core/firebase/firebase';
+import { Observable } from 'rxjs';
 
 export type LogIntent = 'info' | 'success' | 'warning' | 'error';
 
@@ -38,6 +39,51 @@ export class ActivityLogService {
        meta = { message: errorObj.message, stack: errorObj.stack };
     }
     await this.log(action, description, 'error', meta);
+  }
+
+  /**
+   * Returns a real-time Observable of the latest activity logs.
+   */
+  getLogs(maxBatch = 150): Observable<(ActivityLog & { id: string })[]> {
+    return new Observable((subscriber) => {
+      const q = query(this.collectionRef, orderBy('timestamp', 'desc'), limit(maxBatch));
+      const unsubscribe = onSnapshot(q, (snap) => {
+        const data: (ActivityLog & { id: string })[] = [];
+        snap.forEach(docSnap => {
+          data.push({ ...docSnap.data() as ActivityLog, id: docSnap.id });
+        });
+        subscriber.next(data);
+      }, (error) => {
+        subscriber.error(error);
+      });
+      return () => unsubscribe();
+    });
+  }
+
+  /**
+   * Resets/Drops all activity logs in the collection using batch deletion.
+   */
+  async dropLogs(): Promise<number> {
+    let numDeleted = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const q = query(this.collectionRef, limit(500));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.size === 0) {
+        hasMore = false;
+        break;
+      }
+
+      const batch = writeBatch(firestore);
+      snapshot.docs.forEach((d) => {
+        batch.delete(d.ref);
+      });
+      await batch.commit();
+      numDeleted += snapshot.size;
+    }
+    return numDeleted;
   }
 
   private async log(action: string, description: string, intent: LogIntent, metadata?: any) {

@@ -52,7 +52,6 @@ fun CreateDeckScreen(
     }
 
     val userProfile by userProfileViewModel.userProfile.collectAsState()
-    val energyBolts = userProfile?.energyBolts ?: 0
 
     Scaffold(
             topBar = {
@@ -179,7 +178,6 @@ fun CreateDeckScreen(
                             viewModel.generateImage(
                                 index = index,
                                 isPro = userProfile?.isPro == true,
-                                energyBolts = energyBolts,
                                 generatedThisMonth = userProfile?.imagesGeneratedThisMonth ?: 0
                             )
                         },
