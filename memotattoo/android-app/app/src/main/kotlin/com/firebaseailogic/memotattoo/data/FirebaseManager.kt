@@ -7,6 +7,8 @@ import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderF
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.storage
+import com.firebaseailogic.memotattoo.BuildConfig
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 
 object FirebaseManager {
     val auth = Firebase.auth
@@ -14,12 +16,17 @@ object FirebaseManager {
     val storage = Firebase.storage
 
     fun initializeAppCheck() {
-        // App Check Initialization explicitly defined in Architecture doc for abuse prevention
-        // For development, it requires a DebugProvider manually registered in the console.
-        /*
-        Firebase.appCheck.installAppCheckProviderFactory(
+        // Set the debug token for App Check
+        if (BuildConfig.DEBUG && BuildConfig.APPCHECK_DEBUG_TOKEN.isNotEmpty()) {
+            System.setProperty("com.google.firebase.appcheck.debug.token", BuildConfig.APPCHECK_DEBUG_TOKEN)
+        }
+
+        val providerFactory = if (BuildConfig.DEBUG) {
+            DebugAppCheckProviderFactory.getInstance()
+        } else {
             PlayIntegrityAppCheckProviderFactory.getInstance()
-        )
-        */
+        }
+        
+        Firebase.appCheck.installAppCheckProviderFactory(providerFactory)
     }
 }

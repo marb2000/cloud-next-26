@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 /*
 This build script is related to the `gradle/libs.versions.toml` file in the following way:
 
@@ -51,6 +54,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Read App Check debug token from local.properties if it exists
+            val appCheckToken = project.rootProject.file("local.properties")
+                .let { if (it.exists()) Properties().apply { load(FileInputStream(it)) } else null }
+                ?.getProperty("APPCHECK_DEBUG_TOKEN") ?: ""
+            
+            buildConfigField("String", "APPCHECK_DEBUG_TOKEN", "\"$appCheckToken\"")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
@@ -70,6 +81,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
@@ -104,6 +116,7 @@ dependencies {
     implementation(libs.firebase.vertexai)
     implementation(libs.firebase.ai)
     implementation(libs.firebase.appcheck)
+    implementation(libs.firebase.appcheck.debug)
     implementation(libs.kotlinx.serialization.json)
     
     testImplementation(libs.junit)

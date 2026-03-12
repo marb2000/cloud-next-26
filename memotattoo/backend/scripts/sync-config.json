@@ -6,5 +6,7 @@
   "ADMIN_PASSWORD": "memotattoo123",
   "ANDROID_PACKAGE_NAME": "com.firebaseailogic.memotattoo",
   "ANDROID_APP_NAME": "MemoTattoo App",
-  "WEB_APP_NAME": "MemoTattoo Console"
+  "WEB_APP_NAME": "MemoTattoo Console",
+  "APPCHECK_DEBUG_TOKEN": "283506C0-51BB-4F2D-83BE-4684B26E5267",
+  "RECAPTCHA_SECRET_KEY": "6LeKdYgsAAAAABylnl5oDWskYNVPaQFj_94dIYM4"
 }

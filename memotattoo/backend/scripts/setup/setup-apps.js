@@ -99,12 +99,44 @@ async function createWebApp(accessToken) {
   }
 }
 
+async function listApps(accessToken, platform) {
+  const url = `https://firebase.googleapis.com/v1beta1/projects/${PROJECT_ID}/${platform}Apps`;
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'X-Goog-User-Project': PROJECT_ID
+    }
+  });
+  if (response.ok) {
+    const data = await response.json();
+    return data.apps || [];
+  }
+  return [];
+}
+
 async function setupApps() {
   console.log(`🚀 Automated App Registration for: ${PROJECT_ID}`);
   try {
     const accessToken = await getAccessToken();
-    await createAndroidApp(accessToken);
-    await createWebApp(accessToken);
+    
+    // Check Android
+    const androidApps = await listApps(accessToken, 'android');
+    const existingAndroid = androidApps.find(a => a.packageName === ANDROID_PACKAGE);
+    if (existingAndroid) {
+      console.log('✅ Android App already exists.');
+    } else {
+      await createAndroidApp(accessToken);
+    }
+
+    // Check Web
+    const webApps = await listApps(accessToken, 'web');
+    const existingWeb = webApps.find(a => a.displayName === WEB_APP_NAME);
+    if (existingWeb) {
+      console.log('✅ Web App already exists.');
+    } else {
+      await createWebApp(accessToken);
+    }
+
     console.log('\n✨ App setup complete.');
   } catch (error) {
     console.error('💥 Fatal error during App registration:', error);

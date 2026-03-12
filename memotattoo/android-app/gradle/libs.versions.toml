@@ -44,6 +44,7 @@ firebase-storage = { group = "com.google.firebase", name = "firebase-storage-ktx
 firebase-vertexai = { group = "com.google.firebase", name = "firebase-vertexai" }
 firebase-ai = { group = "com.google.firebase", name = "firebase-ai", version = "17.8.0" }
 firebase-appcheck = { group = "com.google.firebase", name = "firebase-appcheck-playintegrity" }
+firebase-appcheck-debug = { group = "com.google.firebase", name = "firebase-appcheck-debug" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version = "1.6.3" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coilCompose" }

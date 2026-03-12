@@ -4,14 +4,6 @@ This document tracks upcoming features, improvements, and technical debt for the
 
 ---
 
-## 🛡️ Security & Resilience
-
-### Firebase App Check Integration
-- [ ] **Android Implementation**: Enable Play Integrity in `FirebaseManager.kt` and register in the console.
-- [ ] **Web Integration**: Implement reCAPTCHA Enterprise/v3 in the Admin Console.
-- [ ] **Enforcement**: Enable App Check enforcement for Firestore, Storage, and Vertex AI to prevent API abuse and cost spikes.
-
----
 
 ## 📊 Admin Console Enhancements
 
@@ -32,6 +24,14 @@ This document tracks upcoming features, improvements, and technical debt for the
 ### User Experience
 - [ ] **Voice Interaction**: Moving from text guesses to multimodal voice-to-logic gameplay.
 - [ ] **Offline Mode**: Enable Firestore persistence for basic deck browsing without a connection.
+
+
+### Others
+- [ ] Playwright tests for Admin Console
+- [ ] Exporesso test for Android App
+- [ ] Include Happy Paths: Automatic Function Calling and JSON Schema Generation
+
+
 
 
 

@@ -55,5 +55,9 @@ echo -e "\n--- Step 10: Cloud Functions ---"
 (cd setup/functions && npm install)
 (cd setup && npx firebase deploy --only functions --project "$PROJECT_ID")
 
+# 11. Setup App Check
+echo -e "\n--- Step 11: App Check ---"
+node setup/setup-appcheck.js
+
 echo -e "\n✨ Full project setup finished!"
 echo "Check the deployment_guide.md and walkthrough.md for manual steps (like Google Auth)."
