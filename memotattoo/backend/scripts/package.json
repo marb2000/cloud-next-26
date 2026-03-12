@@ -1,6 +1,7 @@
 {
   "name": "memotattoo-admin-scripts",
   "version": "1.0.0",
+  "type": "module",
   "description": "Helper Node.js scripts for managing custom claims in MemoTattoo",
   "main": "setAdminClaim.js",
   "scripts": {

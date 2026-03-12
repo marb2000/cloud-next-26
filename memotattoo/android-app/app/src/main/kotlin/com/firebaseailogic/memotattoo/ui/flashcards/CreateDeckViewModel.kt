@@ -275,15 +275,15 @@ class CreateDeckViewModel(
     }
 
     fun saveDraft(onComplete: () -> Unit) {
-        saveOrPublish(isPublic = false, status = "draft", onComplete = onComplete)
+        saveOrPublish(status = "draft", onComplete = onComplete)
     }
 
     fun publish(isPublic: Boolean, onComplete: () -> Unit) {
         val status = if (isPublic) "pending" else "private"
-        saveOrPublish(isPublic = isPublic, status = status, onComplete = onComplete)
+        saveOrPublish(status = status, onComplete = onComplete)
     }
 
-    private fun saveOrPublish(isPublic: Boolean, status: String, onComplete: () -> Unit) {
+    private fun saveOrPublish(status: String, onComplete: () -> Unit) {
         val state = _uiState.value
         viewModelScope.launch {
             try {
@@ -306,9 +306,9 @@ class CreateDeckViewModel(
                     "authorId" to uid,
                     "owner_id" to uid,
                     "owner_email" to (auth.currentUser?.email ?: ""),
-                    "isPublic" to isPublic,
                     "status" to status,
                     "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                    "publishedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
                     "items" to itemsList,
                     "artDirection" to state.globalArtDirection,
                     "artReferenceImage" to (state.globalArtImageUri ?: "")

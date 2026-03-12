@@ -57,18 +57,18 @@
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           @for (item of deck.items; track item.original; let i = $index) {
           <div (click)="openZoom(item)" class="bg-black/40 rounded-lg border border-slate-700/50 overflow-hidden relative group/item cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all">
-            @if (item.image) {
-            <img [src]="item.image" class="w-full aspect-square object-cover" />
+            @if (item.image || item.imageArt) {
+            <img [src]="item.image || item.imageArt" class="w-full aspect-square object-cover" />
             } @else {
             <div
               class="w-full aspect-square bg-slate-900 flex flex-col items-center justify-center border-b border-slate-800 p-4 text-center">
-              <span appResizeText class="text-xl md:text-2xl font-black text-slate-300 leading-tight drop-shadow-sm break-words text-wrap">{{ item.translation }}</span>
+              <span appResizeText class="text-xl md:text-2xl font-black text-slate-300 leading-tight drop-shadow-sm break-words text-wrap">{{ item.translation || item.definition }}</span>
             </div>
             }
             <div
               class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-3 flex flex-col justify-end">
-              <span class="text-xs font-bold text-white shrink-0 truncate">{{ item.original }}</span>
-              <span class="text-[10px] text-slate-300 line-clamp-2 mt-0.5 leading-tight">{{ item.translation }}</span>
+              <span class="text-xs font-bold text-white shrink-0 truncate">{{ item.original || item.term }}</span>
+              <span class="text-[10px] text-slate-300 line-clamp-2 mt-0.5 leading-tight">{{ item.translation || item.definition }}</span>
             </div>
           </div>
           }
@@ -93,8 +93,8 @@
 
   <div class="max-w-4xl w-full flex flex-col items-center gap-6 cursor-auto" (click)="$event.stopPropagation()">
     <!-- Visual Representation -->
-    @if (zoomedItem().image) {
-    <img [src]="zoomedItem().image" class="max-w-full max-h-[70vh] object-contain rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-slate-700/50">
+    @if (zoomedItem().image || zoomedItem().imageArt) {
+    <img [src]="zoomedItem().image || zoomedItem().imageArt" class="max-w-full max-h-[70vh] object-contain rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-slate-700/50">
     } @else {
     <div class="w-full max-w-lg aspect-square bg-slate-900 flex flex-col items-center justify-center rounded-xl border-4 border-slate-800 p-8 text-center shadow-[0_0_50px_rgba(0,0,0,0.5)]">
       <span appResizeText class="text-3xl sm:text-4xl md:text-5xl font-black text-slate-300 leading-tight drop-shadow-sm text-wrap">{{ zoomedItem().translation || zoomedItem().definition }}</span>

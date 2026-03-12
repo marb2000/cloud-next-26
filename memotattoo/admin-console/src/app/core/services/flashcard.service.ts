@@ -15,7 +15,6 @@ export interface FlashcardDeck {
   artDirection?: string;
   artDirectionImage?: string;
   owner_id?: string;
-  isPublic?: boolean;
 }
 
 @Injectable({
@@ -80,11 +79,10 @@ export class FlashcardService {
     }
   }
 
-  async updateStatus(id: string, newStatus: string, isPublic: boolean): Promise<void> {
+  async updateStatus(id: string, newStatus: string): Promise<void> {
     const docRef = doc(this.decksCollection, id);
     await updateDoc(docRef, { 
-      status: newStatus,
-      isPublic: isPublic
+      status: newStatus
     });
   }
 

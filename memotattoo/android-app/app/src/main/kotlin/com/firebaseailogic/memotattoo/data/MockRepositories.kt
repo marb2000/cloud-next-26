@@ -5,6 +5,7 @@ import com.firebaseailogic.memotattoo.ui.flashcards.UserProfile
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
+
 class MockUserRepository : IUserRepository {
     override fun getUserProfile(uid: String): Flow<UserProfile?> {
         return flowOf(UserProfile(uid, "demo@example.com", 100, false, true, 0))
@@ -16,13 +17,17 @@ class MockUserRepository : IUserRepository {
 }
 
 class MockFlashcardRepository : IFlashcardRepository {
-    override fun getPublicDecks(): Flow<List<FlashcardDeckSummary>> = flowOf(listOf(
-        FlashcardDeckSummary("public_deck_1", "Public: Geography", "World Capitals", "FlashcardDeck", false, "published", true, "another_user", 0)
-    ))
-    override fun getMyDecks(uid: String): Flow<List<FlashcardDeckSummary>> = flowOf(listOf(
-        FlashcardDeckSummary("demo_deck_1", "Demo Deck: Anatomy", "Anatomy and Physiology", "FlashcardDeck", false, "active", false, uid, 50),
-        FlashcardDeckSummary("demo_deck_2", "Demo Deck: History", "World History", "FlashcardDeck", false, "active", false, uid, 0)
-    ))
+    override fun getPublicDecks(searchQuery: String?, limit: Long): Flow<Resource<List<FlashcardDeckSummary>>> = flowOf(
+        Resource.Success(listOf(
+            FlashcardDeckSummary("public_deck_1", "Public: Geography", "World Capitals", "FlashcardDeck", false, "published", true, "another_user", 0)
+        ))
+    )
+    override fun getMyDecks(uid: String): Flow<Resource<List<FlashcardDeckSummary>>> = flowOf(
+        Resource.Success(listOf(
+            FlashcardDeckSummary("demo_deck_1", "Demo Deck: Anatomy", "Anatomy and Physiology", "FlashcardDeck", false, "active", false, uid, 50),
+            FlashcardDeckSummary("demo_deck_2", "Demo Deck: History", "World History", "FlashcardDeck", false, "active", false, uid, 0)
+        ))
+    )
     override suspend fun getBestScores(uid: String): Map<String, Int> = mapOf("demo_deck_1" to 50)
     override suspend fun getDeck(deckId: String): Map<String, Any>? {
         return mapOf(
@@ -37,7 +42,7 @@ class MockFlashcardRepository : IFlashcardRepository {
     }
     override suspend fun saveDeck(deckId: String?, data: Map<String, Any>): String = "new_deck_id"
     override suspend fun deleteDeck(deckId: String) {}
-    override suspend fun updateDeckStatus(deckId: String, status: String, isPublic: Boolean) {}
+    override suspend fun updateDeckStatus(deckId: String, status: String) {}
     override suspend fun uploadImage(bytes: ByteArray): String = "https://example.com/mock.jpg"
     override suspend fun saveScore(uid: String, deckId: String, score: Int) {}
 }

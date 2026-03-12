@@ -5,13 +5,15 @@ import { getStorage } from 'firebase/storage';
 import { getAI, GoogleAIBackend, getTemplateGenerativeModel } from 'firebase/ai';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAyfIbcQZ8ufeK8WrgwIuiRhEv-1AvjNrI",
-  authDomain: "ai-logic-demos.firebaseapp.com",
-  projectId: "ai-logic-demos",
-  storageBucket: "ai-logic-demos.firebasestorage.app",
-  messagingSenderId: "861083271982",
-  appId: "1:861083271982:web:af1fe516276b354aeeb0bf",
-  measurementId: "G-49KXEKL7VR"
+  "projectId": "ai-logic-demos",
+  "appId": "1:861083271982:web:8128d34be86880bdeeb0bf",
+  "storageBucket": "ai-logic-demos.firebasestorage.app",
+  "apiKey": "AIzaSyAyfIbcQZ8ufeK8WrgwIuiRhEv-1AvjNrI",
+  "authDomain": "ai-logic-demos.firebaseapp.com",
+  "messagingSenderId": "861083271982",
+  "measurementId": "G-1QFETFNRLC",
+  "projectNumber": "861083271982",
+  "version": "2"
 };
 
 export const app = initializeApp(firebaseConfig);

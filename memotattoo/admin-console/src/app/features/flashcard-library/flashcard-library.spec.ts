@@ -58,14 +58,14 @@ describe('FlashcardLibrary', () => {
   });
 
   describe('executeStatusUpdate', () => {
-    it('should call flashcardService.updateStatus with isPublic: true when publishing', async () => {
+    it('should call flashcardService.updateStatus when publishing', async () => {
       await component.executeStatusUpdate('deck-123', 'published');
-      expect(mockFlashcardService.updateStatus).toHaveBeenCalledWith('deck-123', 'published', true);
+      expect(mockFlashcardService.updateStatus).toHaveBeenCalledWith('deck-123', 'published');
     });
 
-    it('should call flashcardService.updateStatus with isPublic: false when setting private', async () => {
+    it('should call flashcardService.updateStatus when setting private', async () => {
       await component.executeStatusUpdate('deck-123', 'private');
-      expect(mockFlashcardService.updateStatus).toHaveBeenCalledWith('deck-123', 'private', false);
+      expect(mockFlashcardService.updateStatus).toHaveBeenCalledWith('deck-123', 'private');
     });
   });
 
@@ -96,7 +96,7 @@ describe('FlashcardLibrary', () => {
       });
 
       await component.handleConfirmAction();
-      expect(mockFlashcardService.updateStatus).toHaveBeenCalledWith('deck-1', 'draft', false);
+      expect(mockFlashcardService.updateStatus).toHaveBeenCalledWith('deck-1', 'draft');
       expect(mockActivityLogService.warning).toHaveBeenCalledWith('Unlocked Deck', expect.any(String));
     });
   });
@@ -104,8 +104,8 @@ describe('FlashcardLibrary', () => {
   describe('Filtering', () => {
     it('should filter correctly based on showPrivateDecks', () => {
       component.decks.set([
-        { id: '1', topic: 'Public', status: 'published', isPublic: true } as any,
-        { id: '2', topic: 'Private', status: 'private', isPublic: false } as any
+        { id: '1', topic: 'Public', status: 'published' } as any,
+        { id: '2', topic: 'Private', status: 'private' } as any
       ]);
       
       component.showPrivateDecks.set(false);

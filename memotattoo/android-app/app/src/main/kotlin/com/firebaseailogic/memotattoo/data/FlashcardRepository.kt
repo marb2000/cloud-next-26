@@ -10,12 +10,20 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
+
+
+sealed class Resource<out T> {
+    data class Success<out T>(val data: T) : Resource<T>()
+    data class Error(val message: String, val throwable: Throwable? = null) : Resource<Nothing>()
+    object Loading : Resource<Nothing>()
+}
+
 interface IFlashcardRepository {
-    fun getPublicDecks(): Flow<List<FlashcardDeckSummary>>
-    fun getMyDecks(uid: String): Flow<List<FlashcardDeckSummary>>
+    fun getPublicDecks(searchQuery: String? = null, limit: Long = 50): Flow<Resource<List<FlashcardDeckSummary>>>
+    fun getMyDecks(uid: String): Flow<Resource<List<FlashcardDeckSummary>>>
     suspend fun saveDeck(deckId: String?, data: Map<String, Any>): String
     suspend fun deleteDeck(deckId: String)
-    suspend fun updateDeckStatus(deckId: String, status: String, isPublic: Boolean)
+    suspend fun updateDeckStatus(deckId: String, status: String)
     suspend fun getBestScores(uid: String): Map<String, Int>
     suspend fun getDeck(deckId: String): Map<String, Any>?
     suspend fun uploadImage(bytes: ByteArray): String
@@ -32,34 +40,46 @@ class FlashcardRepository(
         return if (doc.exists()) doc.data else null
     }
 
-    override fun getPublicDecks(): Flow<List<FlashcardDeckSummary>> = callbackFlow {
-        val listener = firestore.collection("FlashcardDecks")
-            .whereEqualTo("isPublic", true)
+    override fun getPublicDecks(searchQuery: String?, limit: Long): Flow<Resource<List<FlashcardDeckSummary>>> = callbackFlow {
+        trySend(Resource.Loading)
+        
+        var query: Query = firestore.collection("FlashcardDecks")
+            .whereEqualTo("status", "published")
+        
+        if (!searchQuery.isNullOrEmpty()) {
+            // Simple prefix search for topic field
+            query = query.whereGreaterThanOrEqualTo("topic", searchQuery)
+                         .whereLessThanOrEqualTo("topic", searchQuery + "\uf8ff")
+        }
+        
+        val listener = query.limit(limit)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(Resource.Error(error.message ?: "Unknown error", error))
                     return@addSnapshotListener
                 }
                 val decks = snapshot?.documents?.map { doc ->
                     mapToSummary(doc)
                 } ?: emptyList()
-                trySend(decks)
+                trySend(Resource.Success(decks))
             }
         awaitClose { listener.remove() }
     }
 
-    override fun getMyDecks(uid: String): Flow<List<FlashcardDeckSummary>> = callbackFlow {
+    override fun getMyDecks(uid: String): Flow<Resource<List<FlashcardDeckSummary>>> = callbackFlow {
+        trySend(Resource.Loading)
+        
         val listener = firestore.collection("FlashcardDecks")
             .whereEqualTo("owner_id", uid)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(Resource.Error(error.message ?: "Unknown error", error))
                     return@addSnapshotListener
                 }
                 val decks = snapshot?.documents?.map { doc ->
                     mapToSummary(doc)
                 } ?: emptyList()
-                trySend(decks)
+                trySend(Resource.Success(decks))
             }
         awaitClose { listener.remove() }
     }
@@ -78,9 +98,9 @@ class FlashcardRepository(
         firestore.collection("FlashcardDecks").document(deckId).delete().await()
     }
 
-    override suspend fun updateDeckStatus(deckId: String, status: String, isPublic: Boolean) {
+    override suspend fun updateDeckStatus(deckId: String, status: String) {
         firestore.collection("FlashcardDecks").document(deckId)
-            .update(mapOf("status" to status, "isPublic" to isPublic))
+            .update(mapOf("status" to status))
             .await()
     }
 
@@ -101,7 +121,7 @@ class FlashcardRepository(
             description = doc.getString("topic") ?: "Custom flashcard deck.",
             type = "FlashcardDeck",
             status = doc.getString("status") ?: "draft",
-            isPublic = doc.getBoolean("isPublic") ?: (doc.getString("status") == "published"),
+            isPublic = (doc.getString("status") ?: "draft") == "published",
             ownerId = doc.getString("owner_id") ?: doc.getString("authorId") ?: "",
             bestScore = 0 // Best score is filled in by the ViewModel merging data
         )

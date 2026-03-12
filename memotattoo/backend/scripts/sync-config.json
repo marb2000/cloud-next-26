@@ -1,0 +1,10 @@
+{
+  "PROJECT_ID": "ai-logic-demos",
+  "LOCATION": "us-central1",
+  "PROMPTS_DIR": "./prompts",
+  "ADMIN_EMAIL": "admin@memotattoo.com",
+  "ADMIN_PASSWORD": "memotattoo123",
+  "ANDROID_PACKAGE_NAME": "com.firebaseailogic.memotattoo",
+  "ANDROID_APP_NAME": "MemoTattoo App",
+  "WEB_APP_NAME": "MemoTattoo Console"
+}

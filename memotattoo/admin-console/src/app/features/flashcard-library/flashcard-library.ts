@@ -1,9 +1,10 @@
-import { Component, signal, computed, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { ActivityLogService } from '../../core/services/activity-log.service';
 import { FlashcardService, FlashcardDeck } from '../../core/services/flashcard.service';
+import { UserManagementService, FirebaseUser } from '../../core/services/user-management.service';
 
 @Component({
   selector: 'app-flashcard-library',
@@ -12,14 +13,19 @@ import { FlashcardService, FlashcardDeck } from '../../core/services/flashcard.s
   template: `
     <div class="flex items-center justify-between mb-8">
       <div class="flex items-center gap-4">
-        <h2 class="text-3xl font-bold text-slate-100 tracking-tight">Flashcard Library</h2>
+        <div class="relative">
+          <input type="text" 
+                 [value]="searchQuery()" 
+                 (input)="searchQuery.set($any($event.target).value)"
+                 placeholder="Search decks..." 
+                 class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors w-64">
+          <svg class="w-4 h-4 text-slate-500 absolute right-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        </div>
         <button (click)="showPrivateDecks.set(!showPrivateDecks())" 
                 class="px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors border"
                 [ngClass]="showPrivateDecks() ? 'bg-indigo-600/20 text-indigo-400 border-indigo-500/30 hover:bg-indigo-600/30' : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'">
           {{ showPrivateDecks() ? 'Showing Private' : 'Private Hidden' }}
         </button>
-      </div>
-      <div class="flex gap-2">
         <span class="px-3 py-1 bg-slate-800 rounded-lg text-sm font-semibold text-slate-400 border border-slate-700">Total: {{ filteredDecks().length }}</span>
       </div>
     </div>
@@ -79,7 +85,7 @@ import { FlashcardService, FlashcardDeck } from '../../core/services/flashcard.s
             <!-- Cards Content -->
             <div class="p-6 flex flex-col flex-grow">
               <h3 class="text-xl font-bold text-white mb-1 line-clamp-1" [title]="deck.topic">{{ deck.topic || 'Untitled Deck' }}</h3>
-              <span class="text-xs text-indigo-400 font-mono line-clamp-1 block mb-2">{{ deck.owner_email ? 'By: ' + deck.owner_email : 'System Deck' }}</span>
+              <span class="text-xs text-indigo-400 font-mono line-clamp-1 block mb-2">{{ getOwnerLabel(deck) }}</span>
               <p class="text-[10px] text-slate-500 mb-6 font-mono uppercase tracking-wider">{{ deck.publishedAt | date:'medium' }}</p>
               
               <div class="mt-auto space-y-4">
@@ -202,9 +208,22 @@ import { FlashcardService, FlashcardDeck } from '../../core/services/flashcard.s
   `
 })
 export class FlashcardLibrary implements OnInit {
+  private userManagementService = inject(UserManagementService);
+  users = signal<FirebaseUser[]>([]);
   decks = signal<FlashcardDeck[]>([]);
+  searchQuery = signal<string>('');
   showPrivateDecks = signal<boolean>(false);
-  filteredDecks = computed(() => this.decks().filter(d => this.showPrivateDecks() || d.status !== 'private'));
+  filteredDecks = computed(() => {
+    let decks = this.decks();
+    if (!this.showPrivateDecks()) {
+      decks = decks.filter(d => d.status !== 'private');
+    }
+    const query = this.searchQuery().toLowerCase();
+    if (query) {
+      decks = decks.filter(d => d.topic.toLowerCase().includes(query));
+    }
+    return decks;
+  });
   isLoading = signal<boolean>(true);
   editingDeck = signal<FlashcardDeck | null>(null);
 
@@ -232,13 +251,28 @@ export class FlashcardLibrary implements OnInit {
       this.decks.set(decks);
       this.isLoading.set(false);
     });
+
+    this.userManagementService.getUsers().subscribe(users => {
+      this.users.set(users);
+    });
+  }
+
+  getOwnerLabel(deck: FlashcardDeck): string {
+    const idSuffix = deck.owner_id ? ` (${deck.owner_id.substring(0, 8)}...)` : '';
+    
+    if (deck.owner_email) return 'By: ' + deck.owner_email + idSuffix;
+    if (deck.owner_id) {
+      const user = this.users().find(u => u.id === deck.owner_id);
+      if (user?.email) return 'By: ' + user.email + idSuffix;
+      return 'By User ID: ' + deck.owner_id;
+    }
+    return 'System Deck';
   }
 
   async executeStatusUpdate(id: string, newStatus: string) {
     try {
-      const isPublic = newStatus === 'published';
-      await this.flashcardService.updateStatus(id, newStatus, isPublic);
-      this.logger.info('Status Updated', `Changed library deck ${id} status to ${newStatus} (isPublic: ${isPublic})`);
+      await this.flashcardService.updateStatus(id, newStatus);
+      this.logger.info('Status Updated', `Changed library deck ${id} status to ${newStatus}`);
     } catch (e: any) {
       this.logger.error('Status Update Failed', `Failed to update deck ${id} status to ${newStatus}`, e);
       alert("Status update failed: " + e.message);
@@ -292,7 +326,7 @@ export class FlashcardLibrary implements OnInit {
       }
     } else if (action.type === 'unlock') {
       try {
-        await this.flashcardService.updateStatus(action.id, 'draft', false);
+        await this.flashcardService.updateStatus(action.id, 'draft');
         this.logger.warning('Unlocked Deck', `Unlocked library deck ${action.id} to Draft status`);
       } catch (e: any) {
         this.logger.error('Unlock Deck Failed', `Failed to unlock library deck ${action.id}`, e);
@@ -329,6 +363,12 @@ export class FlashcardLibrary implements OnInit {
       }))
     };
 
+    let resolvedOwnerEmail = deck.owner_email || '';
+    if (!resolvedOwnerEmail && deck.owner_id) {
+      const user = this.users().find(u => u.id === deck.owner_id);
+      if (user?.email) resolvedOwnerEmail = user.email;
+    }
+
     const draftData = {
       activeDraftId: deck.id,
       isEditingExisting: true,
@@ -337,9 +377,9 @@ export class FlashcardLibrary implements OnInit {
       artDirection: deck.artDirection || '',
       artDirectionImage: deck.artDirectionImage || null,
       originalStatus: deck.status || 'draft',
-      originalIsPublic: deck.isPublic ?? false,
+      originalIsPublic: deck.status === 'published',
       originalOwnerId: deck.owner_id || '',
-      originalOwnerEmail: deck.owner_email || '',
+      originalOwnerEmail: resolvedOwnerEmail,
       conceptDrafts: drafts
     };
 

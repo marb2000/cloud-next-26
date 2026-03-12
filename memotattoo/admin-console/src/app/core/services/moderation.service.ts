@@ -9,9 +9,12 @@ export interface PendingDeck {
   status: string;
   isPublic: boolean;
   items: {
-    original: string;
-    translation: string;
-    image: string;
+    original?: string;
+    translation?: string;
+    image?: string;
+    term?: string;
+    definition?: string;
+    imageArt?: string;
   }[];
 }
 

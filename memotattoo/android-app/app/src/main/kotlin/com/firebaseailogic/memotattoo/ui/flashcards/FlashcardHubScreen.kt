@@ -144,6 +144,25 @@ fun FlashcardHubScreen(
                 }
             }
 
+            // Search Bar
+            val searchQuery by flashcardHubViewModel.searchQuery.collectAsState()
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { flashcardHubViewModel.updateSearch(it) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                placeholder = { Text("Search decks...") },
+                singleLine = true,
+                shape = Shapes.medium,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary
+                )
+            )
+
             TabRow(
                     selectedTabIndex = selectedTabIndex,
                     containerColor = MaterialTheme.colorScheme.background,
@@ -180,6 +199,19 @@ fun FlashcardHubScreen(
                             onEdit = { navController.navigate("create_deck?draftId=${deck.id}") },
                             onMenuOpen = { deckForMenu = deck }
                         )
+                    }
+
+                    if (selectedTabIndex == 1 && currentList.isNotEmpty()) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                Button(
+                                    onClick = { flashcardHubViewModel.loadMore() },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Load MoreDecks")
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -280,7 +312,6 @@ fun DeckCard(
                             .clip(Shapes.large)
                             .padding(horizontal = 4.dp)
                             .combinedClickable(
-                                enabled = deck.status != "pending",
                                 onClick = {
                                     if (deck.status == "draft") onEdit() else onClick()
                                 },
@@ -351,40 +382,36 @@ fun DeckCard(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (deck.status == "pending") {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    if (isOwner) {
+                        IconButton(onClick = onMenuOpen) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Menu")
+                        }
+                    }
+                    
+                    if (deck.status != "draft") {
+                        Surface(
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                            modifier = Modifier
+                                .size(40.dp)
+                                .testTag("PlayButton")
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "Play",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
                     } else {
-                        if (isOwner) {
-                            IconButton(onClick = onMenuOpen) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "Menu")
-                            }
-                        }
-                        
-                        if (deck.status != "draft") {
-                            Surface(
-                                shape = androidx.compose.foundation.shape.CircleShape,
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .testTag("PlayButton")
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.PlayArrow,
-                                        contentDescription = "Play",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            }
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null,
-                                modifier = Modifier.size(32.dp).alpha(0.3f),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp).alpha(0.3f),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             }

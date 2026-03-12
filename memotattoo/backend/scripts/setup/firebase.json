@@ -1,0 +1,34 @@
+{
+  "firestore": {
+    "rules": "rules/firestore.rules"
+  },
+  "storage": {
+    "rules": "rules/storage.rules"
+  },
+  "functions": {
+    "source": "functions",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log"
+    ]
+  },
+  "prompts": {
+    "source": "prompts"
+  },
+  "hosting": {
+    "public": "../../../admin-console/dist/admin-console",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

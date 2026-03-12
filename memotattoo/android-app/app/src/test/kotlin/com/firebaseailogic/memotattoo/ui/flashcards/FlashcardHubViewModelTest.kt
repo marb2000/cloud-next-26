@@ -4,6 +4,7 @@ import com.firebaseailogic.memotattoo.data.IFlashcardRepository
 import com.firebaseailogic.memotattoo.ui.flashcards.FlashcardDeckSummary
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.firebaseailogic.memotattoo.data.Resource
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -65,8 +66,8 @@ class FlashcardHubViewModelTest {
             )
         )
         
-        every { repository.getMyDecks("test_user") } returns flowOf(myDecks)
-        every { repository.getPublicDecks() } returns flowOf(publicDecks)
+        every { repository.getMyDecks("test_user") } returns flowOf(Resource.Success(myDecks))
+        every { repository.getPublicDecks(null) } returns flowOf(Resource.Success(publicDecks))
         coEvery { repository.getBestScores("test_user") } returns mapOf("id1" to 10)
 
         val viewModel = createViewModel()
@@ -95,6 +96,26 @@ class FlashcardHubViewModelTest {
         viewModel.publishDeck(deck)
         advanceUntilIdle()
         
-        coVerify { repository.updateDeckStatus("id1", "published", true) }
+        coVerify { repository.updateDeckStatus("id1", "published") }
+    }
+
+    @Test
+    fun `unpublishDeck calls repository`() = runTest {
+        val viewModel = createViewModel()
+        val deck = FlashcardDeckSummary(
+            id = "id1", 
+            title = "Title 1", 
+            description = "Topic", 
+            type = "FlashcardDeck", 
+            status = "published", 
+            isPublic = true, 
+            ownerId = "test_user", 
+            bestScore = 0
+        )
+        
+        viewModel.unpublishDeck(deck)
+        advanceUntilIdle()
+        
+        coVerify { repository.updateDeckStatus("id1", "private") }
     }
 }
