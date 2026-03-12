@@ -566,6 +566,9 @@ export class FlashcardStudio implements OnInit {
 
   canPublish(): boolean {
     const drafts = this.conceptDrafts();
+    if (this.isEditingExisting()) {
+      return drafts.length > 0;
+    }
     return drafts.length > 0 && drafts.every(c => c.images.length > 0);
   }
 

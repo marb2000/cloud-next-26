@@ -168,5 +168,36 @@ describe('FlashcardStudio', () => {
       );
       expect(component.conceptDrafts()[0].images).toContain('https://storage/refined.jpg');
     });
+  describe('canPublish validation', () => {
+    it('should return false for new deck if images are missing', () => {
+      component.isEditingExisting.set(false);
+      component.conceptDrafts.set([
+        { term: 'A', definition: 'B', images: [], selectedIndex: 0, refinePrompt: '', isGenerating: false }
+      ]);
+      expect(component.canPublish()).toBe(false);
+    });
+
+    it('should return true for new deck if all images are present', () => {
+      component.isEditingExisting.set(false);
+      component.conceptDrafts.set([
+        { term: 'A', definition: 'B', images: ['url'], selectedIndex: 0, refinePrompt: '', isGenerating: false }
+      ]);
+      expect(component.canPublish()).toBe(true);
+    });
+
+    it('should return true for existing deck even if images are missing', () => {
+      component.isEditingExisting.set(true);
+      component.conceptDrafts.set([
+        { term: 'A', definition: 'B', images: [], selectedIndex: 0, refinePrompt: '', isGenerating: false }
+      ]);
+      expect(component.canPublish()).toBe(true);
+    });
+
+    it('should return false if there are no concepts at all', () => {
+      component.isEditingExisting.set(true);
+      component.conceptDrafts.set([]);
+      expect(component.canPublish()).toBe(false);
+    });
   });
+});
 });
