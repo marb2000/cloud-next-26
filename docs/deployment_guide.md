@@ -22,7 +22,7 @@ Before you begin, ensure you have the following installed:
 ## 🏁 Phase 1: Firebase Project Initialization
 
 1.  **Create Project**: Go to the [Firebase Console](https://console.firebase.google.com/) and create a new project.
-2.  **Enable Blaze Plan**: Go to **Project Settings > Usage and billing**. You **MUST** be on the Pay-as-you-go (Blaze) plan to use Vertex AI and Cloud Storage features.
+2.  **Enable Blaze Plan**: Go to **Project Settings > Usage and billing**. You **MUST** be on the Pay-as-you-go (Blaze) plan to use Firebase AI Logic with Vertex AI and Cloud Storage features.
 
 ---
 
@@ -62,31 +62,38 @@ cd memotattoo/backend/scripts
 
 ---
 
-## 📱 Phase 3: Building the Apps
+## 📱 Phase 3: Running & Building the Apps
 
 ### Android App
 The setup script already placed `google-services.json` in the correct folder. 
-1.  Open `memotattoo/android-app` in **Android Studio**.
-2.  Wait for Gradle sync.
-3.  Run the app on an emulator or physical device.
+
+1.  **🚀 Recommended (Script)**: Use our automation script to build and deploy to a running emulator:
+    ```bash
+    cd memotattoo
+    ./scripts/deploy-android.sh
+    ```
+2.  **Alternatively (Manual)**: Open `memotattoo/android-app` in **Android Studio**, wait for Gradle sync, and hit the **Run** button.
 
 ### Web Admin Console
-1.  The setup script generated a `firebase-config.json`. You may need to copy its contents into `admin-console/src/app/core/firebase/firebase.ts` if it wasn't automatically updated.
-2.  Deploy the console:
+You can run the console locally for development or build it for production hosting.
+
+1.  **🚀 Recommended (Local Dev)**: Run the project directly from VS Code or Antigravity for a live-reloading experience:
+    ```bash
+    cd memotattoo/admin-console
+    npm install
+    npm start
+    ```
+2.  **Alternatively (Production Build)**: If you need a static build:
     ```bash
     cd memotattoo/admin-console
     npm install
     npm run build
+    ```
+3.  **Firebase Hosting (Optional)**: If you want to host it on the web:
+    ```bash
+    cd memotattoo/backend
     firebase deploy --only hosting
     ```
-
----
-
-## 🔑 Phase 4: Manual Finishing Touches
-
-1.  **Google Sign-in**: Go to the Firebase Console > Auth > Sign-in Method > Google. Enable it and configure your support email.
-2.  **SHA-1 Fingerprint**: For Google Sign-in to work on Android, you must add your machine's SHA-1 fingerprint to the Android app in the Firebase Console.
-    *   Generate it with: `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android`
 
 ---
 
