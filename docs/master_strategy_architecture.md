@@ -6,9 +6,7 @@
 
 ## 1. Product Vision
 
-**The Problem:** Traditional language learning apps often rely on static, rigid content and penalize learners for natural variations in phrasing. They lack personal context, making vocabulary retention a chore rather than an experience.
-
-**The Solution:** MemoTattoo is a multimodal, AI-first educational ecosystem. It leverages Generative AI to create hyper-personalized, visual-first learning content (flashcard decks) that adapts to user interests. Instead of binary right/wrong strings, it uses a "Game Master" AI to evaluate semantic understanding, provide contextual hints, and guide the learner through a gamified, interactive session.
+MemoTattoo is a multimodal, AI-first educational ecosystem. It leverages Generative AI to create hyper-personalized, visual-first learning content (flashcard decks) that adapts to user interests. Instead of binary right/wrong strings, it uses a "Game Master" AI to evaluate semantic understanding, provide contextual hints, and guide the learner through a gamified, interactive session.
 
 **Platforms:** 
 - **Native Android App (Kotlin/Compose):** The learner-facing interface for discovery, image-based guessing games, and on-the-go deck creation.
@@ -18,7 +16,7 @@
 
 ## 2. Core GenAI Strategy & Mechanics
 
-MemoTattoo utilizes a sophisticated AI orchestration layer powered by **Firebase AI Logic**, splitting workloads between creation and gameplay:
+MemoTattoo utilizes a  AI orchestration layer powered by **Firebase AI Logic**, splitting workloads between creation and gameplay:
 
 ### A. The "Flashcard Studio" (Content Creation)
 Creators (and Admins) use a 5-step wizard to build "Personalized Curricula" using **Firebase AI Logic Prompt Templates**:
@@ -80,15 +78,3 @@ Bolts regulate the usage cost of generative models and create a "creator economy
 -   **Role-Based Access (RBAC):** `firestore.rules` uses custom `isAdmin()` helpers to restrict user deletion, bulk moderation, and curriculum publishing to verified accounts.
 
 ---
-
-## 6. Product Roadmap (Post-v2.5)
-
-1.  **Collaborative Decks:** Allow multiple creators to "remix" and expand existing public libraries.
-2.  **Voice Interaction:** Moving from text guesses to multimodal voice-to-logic gameplay.
-3.  **Pro Tier Expansion:** Tiered "Scholar" memberships with advanced art model access (Imagen 3.5+).
-
----
-
-## 7. Summary of Value
-
-MemoTattoo transforms language learning from rigid string-matching into a **creative, visual, and semantic experience**. By combining **multimodal Generative AI** with a **gamified creator economy**, it achieves high user engagement while maintaining a sustainable operational model via the "Energy Bolt" economy.

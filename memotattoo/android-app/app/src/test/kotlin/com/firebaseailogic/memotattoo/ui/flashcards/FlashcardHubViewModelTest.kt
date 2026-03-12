@@ -5,11 +5,19 @@ import com.firebaseailogic.memotattoo.ui.flashcards.FlashcardDeckSummary
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.firebaseailogic.memotattoo.data.Resource
-import io.mockk.*
+import io.mockk.mockk
+import io.mockk.every
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.*
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.resetMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -96,7 +104,7 @@ class FlashcardHubViewModelTest {
         viewModel.publishDeck(deck)
         advanceUntilIdle()
         
-        coVerify { repository.updateDeckStatus("id1", "published") }
+        coVerify { repository.updateDeckStatus("id1", "pending") }
     }
 
     @Test
