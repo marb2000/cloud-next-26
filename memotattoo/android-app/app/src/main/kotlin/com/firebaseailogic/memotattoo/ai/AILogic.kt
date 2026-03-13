@@ -1,5 +1,5 @@
 package com.firebaseailogic.memotattoo.ai
-
+ 
 import com.firebaseailogic.memotattoo.ui.flashcards.ConceptDraft
 import com.google.firebase.Firebase
 import com.google.firebase.ai.Chat

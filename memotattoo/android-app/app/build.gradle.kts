@@ -14,7 +14,6 @@ This workflow separates the *declaration* of dependencies from their *applicatio
 */
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
     alias(libs.plugins.kotlin.serialization)
@@ -98,14 +97,10 @@ android {
 
 dependencies {
 
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.bundles.androidx.core)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
+    implementation(libs.bundles.compose.ui)
     
     // Navigation & Image Loading
     implementation(libs.androidx.navigation.compose)
@@ -113,29 +108,12 @@ dependencies {
     
     // Firebase AI Logic & Auth Ecosystem
     implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.auth)
-    implementation(libs.firebase.firestore)
-    implementation(libs.firebase.storage)
-    implementation(libs.firebase.ai)
-    implementation(libs.firebase.appcheck)
-    implementation(libs.firebase.appcheck.debug)
+    implementation(libs.bundles.firebase)
     implementation(libs.kotlinx.serialization.json)
     
-    testImplementation(libs.junit)
-    testImplementation(libs.mockk)
-    testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.kotlinx.coroutines.play.services)
-    testImplementation(libs.play.services.tasks)
-    testImplementation(libs.kotlin.reflect)
-    androidTestImplementation(libs.junit)
-    androidTestImplementation(libs.mockk.android)
-    androidTestImplementation(libs.mockk.agent.android)
-    androidTestImplementation(libs.kotlinx.coroutines.test)
-    androidTestImplementation(libs.kotlin.reflect)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
+    testImplementation(libs.bundles.test.unit)
+    androidTestImplementation(libs.bundles.test.android)
     androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
