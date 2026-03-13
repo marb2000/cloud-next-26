@@ -16,6 +16,7 @@ coilCompose = "3.4.0"
 googleServices = "4.4.4"
 mockk = "1.14.9"
 coroutinesTest = "1.10.2"
+kotlinxSerialization = "1.10.0"
 playServicesTasks = "18.1.0"
 kotlin-reflect = { ref = "kotlin" }
 
@@ -37,6 +38,8 @@ androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core" }
+androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
@@ -44,9 +47,10 @@ firebase-storage = { group = "com.google.firebase", name = "firebase-storage" }
 firebase-ai = { group = "com.google.firebase", name = "firebase-ai" }
 firebase-appcheck = { group = "com.google.firebase", name = "firebase-appcheck-playintegrity" }
 firebase-appcheck-debug = { group = "com.google.firebase", name = "firebase-appcheck-debug" }
-kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version = "1.6.3" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
-coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coilCompose" }
+coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coilCompose" }
+coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coilCompose" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }
 mockk-agent-android = { group = "io.mockk", name = "mockk-agent-android", version.ref = "mockk" }
@@ -64,13 +68,20 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 
+# This section allows you to group multiple libraries together into a single dependency. 
+# This is useful for common sets of libraries that are often used together, such as Compose or Firebase.
 [bundles]
-androidx-core = ["androidx-core-ktx", "androidx-lifecycle-runtime-ktx"]
+androidx-core = [
+    "androidx-core-ktx", 
+    "androidx-lifecycle-runtime-ktx"
+]
 compose-ui = [
     "androidx-ui",
     "androidx-ui-graphics",
     "androidx-ui-tooling-preview",
     "androidx-material3",
+    "androidx-material-icons-core",
+    "androidx-material-icons-extended",
     "androidx-activity-compose"
 ]
 firebase = [

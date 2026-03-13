@@ -78,9 +78,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
     }
-    kotlinOptions {
-        jvmTarget = "21"
-    }
     buildFeatures {
         compose = true
         buildConfig = true
@@ -105,6 +102,7 @@ dependencies {
     // Navigation & Image Loading
     implementation(libs.androidx.navigation.compose)
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
     
     // Firebase AI Logic & Auth Ecosystem
     implementation(platform(libs.firebase.bom))

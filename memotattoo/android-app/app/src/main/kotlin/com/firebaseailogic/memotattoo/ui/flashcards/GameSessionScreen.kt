@@ -23,7 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.firebaseailogic.memotattoo.ui.components.AutoResizeText
 import com.firebaseailogic.memotattoo.ui.components.FullScreenImageViewer
 import com.firebaseailogic.memotattoo.ui.theme.MemoGradientBrush
