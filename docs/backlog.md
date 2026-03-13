@@ -30,7 +30,7 @@ This document tracks upcoming features, improvements, and technical debt for the
 - [ ] Playwright tests for Admin Console
 - [ ] Exporesso test for Android App
 - [ ] Include Happy Paths: Automatic Function Calling and JSON Schema Generation
-
+- [ ] Change the Console UI Deck Creator to use a stepper UI
 
 
 

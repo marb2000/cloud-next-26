@@ -51,6 +51,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Default empty string for APPCHECK_DEBUG_TOKEN, overridden in debug build type
+        buildConfigField("String", "APPCHECK_DEBUG_TOKEN", "\"\"")
     }
 
     buildTypes {
@@ -113,7 +116,6 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
-    implementation(libs.firebase.vertexai)
     implementation(libs.firebase.ai)
     implementation(libs.firebase.appcheck)
     implementation(libs.firebase.appcheck.debug)
