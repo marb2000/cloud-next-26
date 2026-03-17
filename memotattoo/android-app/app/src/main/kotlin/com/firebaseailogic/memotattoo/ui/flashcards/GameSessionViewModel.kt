@@ -1,14 +1,16 @@
 package com.firebaseailogic.memotattoo.ui.flashcards
 
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.firebaseailogic.memotattoo.ai.AILogic
 import com.firebaseailogic.memotattoo.data.IFlashcardRepository
+import com.firebaseailogic.memotattoo.data.FlashcardRepository
 import com.firebaseailogic.memotattoo.data.IUserRepository
+import com.firebaseailogic.memotattoo.data.UserRepository
+import com.firebaseailogic.memotattoo.data.FirebaseManager
+import com.firebaseailogic.memotattoo.ai.AILogic
 import com.google.firebase.ai.Chat
-import com.google.firebase.ai.type.FunctionResponsePart
-import com.google.firebase.ai.type.content
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -16,8 +18,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 
 data class ChatMessage(val isUser: Boolean, val text: String, val isSystem: Boolean = false)
 
@@ -40,24 +40,17 @@ data class GameSessionUiState(
 )
 
 class GameSessionViewModel(
-    private val flashcardRepository: IFlashcardRepository,
-    private val userRepository: IUserRepository,
-    private val auth: FirebaseAuth,
-    private val aiLogic: com.firebaseailogic.memotattoo.ai.IAILogic
+    private val flashcardRepository: IFlashcardRepository = FlashcardRepository(),
+    private val userRepository: IUserRepository = UserRepository(),
+    private val auth: FirebaseAuth = FirebaseManager.auth,
+    private val aiLogic: com.firebaseailogic.memotattoo.ai.IAILogic = AILogic
 ) : ViewModel() {
-
-    constructor() : this(
-        flashcardRepository = com.firebaseailogic.memotattoo.data.FlashcardRepository(),
-        userRepository = com.firebaseailogic.memotattoo.data.UserRepository(),
-        auth = com.firebaseailogic.memotattoo.data.FirebaseManager.auth,
-        aiLogic = com.firebaseailogic.memotattoo.ai.AILogic
-    )
 
     private val _uiState = MutableStateFlow(GameSessionUiState())
     val uiState = _uiState.asStateFlow()
 
     private var chat: Chat? = null
-    private val _messages = mutableStateListOf<ChatMessage>()
+    private val _messages: SnapshotStateList<ChatMessage> = mutableStateListOf<ChatMessage>()
     private var remainingConcepts = mutableListOf<Map<String, Any>>()
     private var timerJob: Job? = null
     private var deckOwnerId: String? = null
@@ -91,9 +84,41 @@ class GameSessionViewModel(
                     nextRound()
                 }
 
-                chat = aiLogic.startGameSession(title)
+                chat = aiLogic.startGameSession(
+                    deckTitle = title,
+                    onAddPoints = { points ->
+                        _uiState.update { it.copy(
+                            score = it.score + points,
+                            termsGuessed = if (points > 0) it.termsGuessed + 1 else it.termsGuessed,
+                            pointsAnimTrigger = points
+                        ) }
+                        viewModelScope.launch {
+                            delay(2500L)
+                            _uiState.update { it.copy(pointsAnimTrigger = null) }
+                        }
+                    },
+                    onNextConcept = { _ ->
+                        stopTimer()
+                        _messages.clear()
+                        nextRound()
+                        val concept = _uiState.value.currentConcept
+                        if (concept != null) {
+                            val term = (concept["term"] ?: concept["original"]).toString()
+                            val def = (concept["definition"] ?: concept["translation"]).toString()
+                            val img = (concept["imageArt"] ?: concept["image"])?.toString() ?: ""
+                            mapOf(
+                                "status" to "advanced",
+                                "nextTargetTerm" to term,
+                                "nextDefinition" to def,
+                                "imageSource" to (if (img.isNotBlank()) "true" else "false")
+                            )
+                        } else {
+                            mapOf("status" to "game_over")
+                        }
+                    }
+                )
                 startInitialChat(title)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiState.update { it.copy(isLoading = false, isGameOver = true) }
             }
         }
@@ -106,9 +131,14 @@ class GameSessionViewModel(
         val imageSource = (concept["imageArt"] as? String) ?: (concept["image"] as? String) ?: ""
 
         val seedText = if (imageSource.isNotBlank()) {
-            "Start the game. The first target term is '$term' and its definition is '$definition'. Start the round by asking what word you are thinking of. Keep it brief."
+            "Start the game. The first target term is '$term' and its definition is '$definition'. " +
+                    "Start the round by asking what word you are thinking of. Keep it brief."
         } else {
-            "Start the game. We are playing a game guessing concepts from '$deckTitle'. The first target term is '$term' and its definition is '$definition'. There is NO image. You must start the round by giving the user the definition: '$definition', and asking them what word fits it. Keep it brief."
+            "Start the game. We are playing a game guessing concepts from '$deckTitle'. " +
+                    "The first target term is '$term' and its definition is '$definition'. " +
+                    "There is NO image. " +
+                    "You must start the round by giving the user the definition: '$definition', " +
+                    "and asking them what word fits it. Keep it brief."
         }
 
         viewModelScope.launch {
@@ -175,77 +205,21 @@ class GameSessionViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true) }
             try {
-                var response: com.google.firebase.ai.type.GenerateContentResponse? = null
                 if (chat != null) {
-                    response = chat?.sendMessage(guess)
-                }
-
-                if (chat != null) {
-                    if (response != null && response.functionCalls.isNotEmpty()) {
-                        handleFunctionCalls(response)
-                    } else {
-                        addMessage(ChatMessage(false, response?.text ?: "No response"))
-                    }
+                    val response = chat?.sendMessage(guess)
+                    addMessage(ChatMessage(false, response?.text ?: "No response"))
                 }
             } catch (e: Exception) {
                 addMessage(ChatMessage(false, "Error: ${e.message}"))
             } finally {
                 _uiState.update { it.copy(isSubmitting = false) }
+                if (!_uiState.value.isGameOver) {
+                    startTimer()
+                }
             }
         }
     }
 
-    private suspend fun handleFunctionCalls(response: com.google.firebase.ai.type.GenerateContentResponse) {
-        val hasGameAction = response.functionCalls.any { it.name == "add_points" || it.name == "next_concept" }
-        if (hasGameAction) {
-            stopTimer()
-        }
-
-        val functionResponses = response.functionCalls.map { call ->
-            when (call.name) {
-                "add_points" -> {
-                    val points = (call.args["points"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0
-                    _uiState.update { it.copy(
-                        score = it.score + points,
-                        termsGuessed = if (points > 0) it.termsGuessed + 1 else it.termsGuessed,
-                        pointsAnimTrigger = points
-                    ) }
-                    viewModelScope.launch {
-                        delay(2500L)
-                        _uiState.update { it.copy(pointsAnimTrigger = null) }
-                    }
-                    FunctionResponsePart("add_points", JsonObject(mapOf("status" to JsonPrimitive("points_added"))))
-                }
-                "next_concept" -> {
-                    _messages.clear()
-                    nextRound()
-                    val concept = _uiState.value.currentConcept
-                    if (concept != null) {
-                        val term = (concept["term"] ?: concept["original"]).toString()
-                        val def = (concept["definition"] ?: concept["translation"]).toString()
-                        val img = (concept["imageArt"] ?: concept["image"])?.toString() ?: ""
-                        FunctionResponsePart("next_concept", JsonObject(mapOf(
-                            "status" to JsonPrimitive("advanced"),
-                            "nextTargetTerm" to JsonPrimitive(term),
-                            "nextDefinition" to JsonPrimitive(def),
-                            "imageSource" to JsonPrimitive(if (img.isNotBlank()) "true" else "false")
-                        )))
-                    } else {
-                        FunctionResponsePart("next_concept", JsonObject(mapOf("status" to JsonPrimitive("game_over"))))
-                    }
-                }
-                else -> FunctionResponsePart(call.name, JsonObject(mapOf("status" to JsonPrimitive("unknown"))))
-            }
-        }
-
-        val finalResponse = chat?.sendMessage(content("function") {
-            functionResponses.forEach { part(it) }
-        })
-        addMessage(ChatMessage(false, finalResponse?.text ?: ""))
-        if (hasGameAction && !_uiState.value.isGameOver) {
-            startTimer()
-        }
-    }
 
     private fun addMessage(msg: ChatMessage) {
         _messages.add(msg)

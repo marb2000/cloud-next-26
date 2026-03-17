@@ -1,5 +1,9 @@
 package com.firebaseailogic.memotattoo.ui.flashcards
 
+import com.google.firebase.ai.annotations.Generable
+import com.google.firebase.ai.annotations.Guide
+import kotlinx.serialization.Serializable
+
 data class FlashcardDeckSummary(
     val id: String,
     val title: String,
@@ -23,9 +27,13 @@ data class DraftState(
     var draftId: String? = null
 )
 
+@Serializable
+@Generable
 data class ConceptDraft(
+    @Guide("The term or word to be learned")
     var term: String = "",
+    @Guide("A concise definition or translation of the term")
     var definition: String = "",
     var imageUrl: String? = null,
     var isGeneratingImage: Boolean = false
-)
+) { companion object }

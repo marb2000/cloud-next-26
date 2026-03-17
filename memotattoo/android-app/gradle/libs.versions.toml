@@ -17,6 +17,7 @@ googleServices = "4.4.4"
 mockk = "1.14.9"
 coroutinesTest = "1.10.2"
 kotlinxSerialization = "1.10.0"
+ksp = "2.3.6"
 playServicesTasks = "18.1.0"
 kotlin-reflect = { ref = "kotlin" }
 
@@ -40,6 +41,7 @@ androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core" }
 androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
@@ -58,6 +60,7 @@ kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", vers
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutinesTest" }
 play-services-tasks = { group = "com.google.android.gms", name = "play-services-tasks", version.ref = "playServicesTasks" }
+firebase-ai-ksp = { group = "com.google.firebase", name = "firebase-ai-ksp-processor", version = "16.0.1" }
 
 # This section is similar to [libraries] but for Gradle plugins.
 # Pluggins are tools that add functionality to Gradle.At build time only, not included in your app
@@ -67,6 +70,7 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 
 # This section allows you to group multiple libraries together into a single dependency. 
 # This is useful for common sets of libraries that are often used together, such as Compose or Firebase.
@@ -82,7 +86,8 @@ compose-ui = [
     "androidx-material3",
     "androidx-material-icons-core",
     "androidx-material-icons-extended",
-    "androidx-activity-compose"
+    "androidx-activity-compose",
+    "androidx-compose-runtime"
 ]
 firebase = [
     "firebase-auth",

@@ -266,7 +266,9 @@ fun GameSessionScreen(
     }
 
     if (fullScreenImageUrl != null) {
-        FullScreenImageViewer(imageUrl = fullScreenImageUrl!!) { fullScreenImageUrl = null }
+        FullScreenImageViewer(imageUrl = fullScreenImageUrl!!) {
+            fullScreenImageUrl = null
+        }
     }
 }
 

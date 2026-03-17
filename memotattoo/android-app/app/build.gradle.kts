@@ -17,6 +17,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
+    id("idea")
 }
 
 android {
@@ -90,6 +92,18 @@ android {
             excludes += "META-INF/LICENSE-notice.md"
         }
     }
+
+    sourceSets {
+        getByName("main") {
+            kotlin.srcDirs("build/generated/ksp/debug/kotlin")
+        }
+    }
+}
+
+idea {
+    module {
+        generatedSourceDirs.add(file("build/generated/ksp/debug/kotlin"))
+    }
 }
 
 dependencies {
@@ -108,6 +122,7 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.bundles.firebase)
     implementation(libs.kotlinx.serialization.json)
+    ksp(libs.firebase.ai.ksp)
     
     testImplementation(libs.bundles.test.unit)
     androidTestImplementation(libs.bundles.test.android)

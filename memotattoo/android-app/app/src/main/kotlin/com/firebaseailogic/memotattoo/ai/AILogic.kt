@@ -1,14 +1,13 @@
 package com.firebaseailogic.memotattoo.ai
- 
+
 import com.firebaseailogic.memotattoo.ui.flashcards.ConceptDraft
 import com.google.firebase.Firebase
-import com.google.firebase.ai.Chat
-import com.google.firebase.ai.ai
-import com.google.firebase.ai.type.FunctionDeclaration
-import com.google.firebase.ai.type.PublicPreviewAPI
-import com.google.firebase.ai.type.Schema
+import com.google.firebase.ai.*
+import com.google.firebase.ai.type.*
 import com.google.firebase.ai.type.Tool
-import com.google.firebase.ai.type.content
+import com.google.firebase.ai.annotations.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.*
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -26,47 +25,62 @@ interface IAILogic {
                 definition: String,
                 artDirection: String?
         ): String
-        fun startGameSession(deckTitle: String): com.google.firebase.ai.Chat?
+        fun startGameSession(
+                deckTitle: String,
+                onAddPoints: (Int) -> Unit,
+                onNextConcept: (String) -> Map<String, Any>
+        ): com.google.firebase.ai.Chat?
 }
+
+@Serializable
+@Generable
+data class AddPointsParams(val points: Int) { companion object }
+
+@Serializable
+@Generable
+data class NextConceptParams(val reason: String) { companion object }
+
+@Serializable
+@Generable
+data class TopicResponse(
+    @Guide("An engaging, concise title for the collection of flashcards")
+    val title: String,
+    @Guide("A list of terms and their corresponding definitions")
+    val items: List<ConceptDraft>
+) { companion object }
+
+@Serializable
+@Generable
+data class BrainstormResponse(
+    @Guide("A list of new, unique concepts to be added to the existing collection")
+    val items: List<ConceptDraft>
+) { companion object }
 
 @OptIn(PublicPreviewAPI::class)
 object AILogic : IAILogic {
 
-        private val generativeModel by lazy { Firebase.ai.generativeModel("gemini-2.5-flash") }
-        private val templateModel by lazy { Firebase.ai.templateGenerativeModel() }
+    private val templateModel by lazy { 
+        Firebase.ai(backend = GenerativeBackend.vertexAI(location = "global"))
+            .templateGenerativeModel() 
+    }
+
+    private val generativeModel by lazy { 
+        Firebase.ai(backend = GenerativeBackend.vertexAI(location = "global"))
+            .generativeModel("gemini-2.5-flash") 
+    }
 
         @OptIn(PublicPreviewAPI::class)
         override suspend fun generateTopic(topic: String, numConcepts: Int): Map<String, Any> {
+                val inputs = mapOf("topic" to topic, "numConcepts" to numConcepts)
                 android.util.Log.d(
                         "AILogic",
                         "AILogic.generateTopic started for topic=$topic, numConcepts=$numConcepts"
                 )
-                val response =
-                        templateModel.generateContent(
-                                "memotattoo-generatate-topic-v1",
-                                mapOf("topic" to topic, "numConcepts" to numConcepts)
-                        )
-                android.util.Log.d("AILogic", "templateModel.generateContent response received")
-                val text =
-                        response.text?.trim()?.removePrefix("```json")?.removeSuffix("```")?.trim()
-                                ?: throw Exception("Failed to generate content")
-
-                val jsonObject = JSONObject(text)
-                val title = jsonObject.getString("title")
-                val itemsArray = jsonObject.getJSONArray("items")
-                val itemsList = mutableListOf<Map<String, String>>()
-
-                for (i in 0 until itemsArray.length()) {
-                        val itemObj = itemsArray.getJSONObject(i)
-                        itemsList.add(
-                                mapOf(
-                                        "term" to itemObj.getString("term"),
-                                        "definition" to itemObj.getString("definition")
-                                )
-                        )
-                }
-
-                return mapOf("title" to title, "items" to itemsList)
+                
+                val response = templateModel.generateContent("memotattoo-generatate-topic-v1", inputs)
+                val text = response.text ?: ""
+                
+                return parseJSONResponse(text)
         }
 
         @OptIn(PublicPreviewAPI::class)
@@ -76,32 +90,19 @@ object AILogic : IAILogic {
                 numConcepts: Int
         ): List<ConceptDraft> {
                 val existingTerms = currentConcepts.joinToString(", ") { it.term }
-                val response =
-                        templateModel.generateContent(
-                                "memotattoo-brainstorm-more-v1",
-                                mapOf(
-                                        "topic" to topic,
-                                        "existing_terms" to existingTerms,
-                                        "numConcepts" to numConcepts
-                                )
-                        )
-                val text =
-                        response.text?.trim()?.removePrefix("```json")?.removeSuffix("```")?.trim()
-                                ?: throw Exception("Failed to brainstorm content")
+                val inputs = mapOf("topic" to topic, "existing_terms" to existingTerms)
 
-                val itemsArray = JSONArray(text)
-                val itemsList = mutableListOf<Map<String, String>>()
-
-                for (i in 0 until itemsArray.length()) {
-                        val itemObj = itemsArray.getJSONObject(i)
-                        itemsList.add(
-                                mapOf(
-                                        "term" to itemObj.getString("term"),
-                                        "definition" to itemObj.getString("definition")
-                                )
-                        )
+                val response = templateModel.generateContent("memotattoo-brainstorm-more-v1", inputs)
+                val text = response.text ?: ""
+                
+                // Parse the JSON array of concepts
+                val cleaned = text.replace("^```json\n|\n```$".toRegex(), "").trim()
+                return try {
+                        Json.decodeFromString<List<ConceptDraft>>(cleaned)
+                } catch (e: Exception) {
+                        android.util.Log.e("AILogic", "JSON parse error in brainstormMore: $cleaned", e)
+                        emptyList()
                 }
-                return itemsList.map { ConceptDraft(it["term"] ?: "", it["definition"] ?: "") }
         }
 
         @OptIn(PublicPreviewAPI::class)
@@ -166,9 +167,13 @@ object AILogic : IAILogic {
                 )
         }
 
-        override fun startGameSession(deckTitle: String): com.google.firebase.ai.Chat? {
+        override fun startGameSession(
+                deckTitle: String,
+                onAddPoints: (Int) -> Unit,
+                onNextConcept: (String) -> Map<String, Any>
+        ): com.google.firebase.ai.Chat? {
                 val gameMasterModel =
-                        Firebase.ai.generativeModel(
+                        Firebase.ai(backend = GenerativeBackend.vertexAI(location = "global")).generativeModel(
                                 modelName = "gemini-2.5-flash",
                                 systemInstruction =
                                         content {
@@ -192,37 +197,72 @@ object AILogic : IAILogic {
                                 tools =
                                         listOf(
                                                 Tool.functionDeclarations(
+                                                        null,
                                                         listOf(
-                                                                FunctionDeclaration(
-                                                                        name = "add_points",
+                                                                AutoFunctionDeclaration.create(
+                                                                        functionName = "add_points",
                                                                         description =
-                                                                                "Award points for a correct guess.",
-                                                                        parameters =
-                                                                                mapOf(
-                                                                                        "points" to
-                                                                                                Schema.integer(
-                                                                                                        description =
-                                                                                                                "Points to add, max 10."
+                                                                                 "Award points for a correct guess.",
+                                                                        inputSchema =
+                                                                                 com.firebaseailogic.memotattoo.ai.AddPointsParams.firebaseAISchema(),
+                                                                        functionReference = {
+                                                                                params: com.firebaseailogic.memotattoo.ai.AddPointsParams ->
+                                                                                onAddPoints(params.points)
+                                                                                com.google.firebase.ai.type.FunctionResponsePart(
+                                                                                        "add_points",
+                                                                                        buildJsonObject {
+                                                                                                put(
+                                                                                                        "status",
+                                                                                                        "points_added"
                                                                                                 )
+                                                                                        }
                                                                                 )
+                                                                        }
                                                                 ),
-                                                                FunctionDeclaration(
-                                                                        name = "next_concept",
+                                                                AutoFunctionDeclaration.create(
+                                                                        functionName = "next_concept",
                                                                         description =
-                                                                                "Advance the game to the next concept. Use this when the user guesses correctly or wants to skip.",
-                                                                        parameters =
-                                                                                mapOf(
-                                                                                        "reason" to
-                                                                                                Schema.string(
-                                                                                                        description =
-                                                                                                                "Reason for advancing (e.g. 'correct_guess' or 'user_skipped')"
-                                                                                                )
+                                                                                 "Advance the game to the next concept. Use this when the user guesses correctly or wants to skip.",
+                                                                        inputSchema =
+                                                                                 com.firebaseailogic.memotattoo.ai.NextConceptParams.firebaseAISchema(),
+                                                                        functionReference = {
+                                                                                params: com.firebaseailogic.memotattoo.ai.NextConceptParams ->
+                                                                                val resultValue =
+                                                                                        onNextConcept(params.reason)
+                                                                                com.google.firebase.ai.type.FunctionResponsePart(
+                                                                                        "next_concept",
+                                                                                        buildJsonObject {
+                                                                                                resultValue.forEach { (key, value) ->
+                                                                                                        put(
+                                                                                                                key,
+                                                                                                                value.toString()
+                                                                                                        )
+                                                                                                }
+                                                                                        }
                                                                                 )
+                                                                        }
                                                                 )
                                                         )
                                                 )
                                         )
                         )
                 return gameMasterModel.startChat()
+        }
+
+        private fun parseJSONResponse(text: String): Map<String, Any> {
+                return try {
+                        val cleaned = text.replace("^```json\n|\n```$".toRegex(), "").trim()
+                        val json = JSONObject(cleaned)
+                        val map = mutableMapOf<String, Any>()
+                        val keys = json.keys()
+                        while (keys.hasNext()) {
+                                val key = keys.next()
+                                map[key] = json.get(key)
+                        }
+                        map
+                } catch (e: Exception) {
+                        android.util.Log.e("AILogic", "JSON parse error: $text", e)
+                        mapOf("error" to "Failed to parse AI output")
+                }
         }
 }

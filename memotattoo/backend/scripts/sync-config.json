@@ -1,6 +1,6 @@
 {
   "PROJECT_ID": "ai-logic-demos",
-  "LOCATION": "us-central1",
+  "LOCATION": "global",
   "PROMPTS_DIR": "./prompts",
   "ADMIN_EMAIL": "admin@memotattoo.com",
   "ADMIN_PASSWORD": "memotattoo123",

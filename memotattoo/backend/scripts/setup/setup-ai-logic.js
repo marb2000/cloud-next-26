@@ -32,7 +32,8 @@ const REQUIRED_SERVICES = [
   'recaptchaenterprise.googleapis.com',
   'playintegrity.googleapis.com',
   'logging.googleapis.com',
-  'monitoring.googleapis.com'
+  'monitoring.googleapis.com',
+  'cloudtrace.googleapis.com'
 ];
 
 async function getAccessToken() {

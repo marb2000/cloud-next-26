@@ -51,5 +51,9 @@ class MockAILogic : com.firebaseailogic.memotattoo.ai.IAILogic {
     override suspend fun generateTopic(topic: String, numConcepts: Int): Map<String, Any> = mapOf("title" to topic, "items" to emptyList<Map<String, String>>())
     override suspend fun brainstormMore(topic: String, currentConcepts: List<com.firebaseailogic.memotattoo.ui.flashcards.ConceptDraft>, numConcepts: Int): List<com.firebaseailogic.memotattoo.ui.flashcards.ConceptDraft> = emptyList()
     override suspend fun generateConceptImage(title: String, term: String, definition: String, artDirection: String?): String = ""
-    override fun startGameSession(deckTitle: String): com.google.firebase.ai.Chat? = null
+    override fun startGameSession(
+        deckTitle: String,
+        onAddPoints: (Int) -> Unit,
+        onNextConcept: (String) -> Map<String, Any>
+    ): com.google.firebase.ai.Chat? = null
 }
