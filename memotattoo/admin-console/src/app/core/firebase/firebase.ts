@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import { getAI, VertexAIBackend, getTemplateGenerativeModel } from 'firebase/ai';
+import { getAI, VertexAIBackend } from 'firebase/ai';
 
 const firebaseConfig = {
   "projectId": "ai-logic-demos",
@@ -34,7 +34,4 @@ initializeAppCheck(app, {
 export const auth = getAuth(app);
 export const firestore = getFirestore(app);
 export const storage = getStorage(app);
-
-// Initialize Firebase AI Logic with the Vertex AI for Firebase backend
 export const ai = getAI(app, { backend: new VertexAIBackend("global") });
-export const templateModel = getTemplateGenerativeModel(ai);

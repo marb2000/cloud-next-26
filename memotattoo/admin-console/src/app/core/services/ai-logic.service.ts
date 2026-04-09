@@ -1,7 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import { templateModel, ai } from '../firebase/firebase';
-import { getGenerativeModel, ChatSession } from 'firebase/ai';
+import { ai } from '../firebase/firebase';
+import { getGenerativeModel, getTemplateGenerativeModel, ChatSession } from 'firebase/ai';
 import { BucketService } from './bucket.service';
+
+const templateModel = getTemplateGenerativeModel(ai);
 
 @Injectable({
   providedIn: 'root'
@@ -16,7 +18,7 @@ export class AILogicService {
       topic,
       numConcepts
     });
-    const text = await result.response.text();
+    const text = result.response.text();
     return this.parseJSONResponse(text);
   }
 
@@ -25,7 +27,7 @@ export class AILogicService {
       topic,
       existing_terms: existingTerms
     });
-    const text = await result.response.text();
+    const text = result.response.text();
     const parsed = this.parseJSONResponse(text);
     return Array.isArray(parsed) ? parsed : [];
   }
@@ -110,7 +112,7 @@ Your job:
       }]
     });
 
-    return await model.startChat();
+    return model.startChat();
   }
 
   async sendGameGuess(session: ChatSession, text: string): Promise<{ text: string, functionCalls?: any[] }> {
@@ -127,7 +129,7 @@ Your job:
     }
 
     const functionCalls = result.response.functionCalls();
-    
+
     if (functionCalls && functionCalls.length > 0) {
       // Return both the text and the calls so the component can perform the side effects (score update, advance)
       return { text: textResponse, functionCalls };
