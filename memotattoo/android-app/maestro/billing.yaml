@@ -1,0 +1,8 @@
+appId: com.firebaseailogic.memotattoo
+---
+- launchApp
+- assertVisible: "Flashcard Hub"
+- tapOn: "Store"
+- assertVisible: "Mock Billing"
+- tapOn: "Buy 10 Bolts"
+- assertVisible: "Success"

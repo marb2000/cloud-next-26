@@ -1,0 +1,7 @@
+appId: com.firebaseailogic.memotattoo
+---
+- launchApp
+- assertVisible: "Flashcard Hub"
+- tapOn: "Settings"
+- assertVisible: "Settings"
+- tapOn: "Dark Mode"

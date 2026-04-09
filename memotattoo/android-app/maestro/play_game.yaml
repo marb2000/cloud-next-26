@@ -1,0 +1,10 @@
+appId: com.firebaseailogic.memotattoo
+---
+- launchApp
+- assertVisible: "Flashcard Hub"
+- tapOn: "Deck 1"
+- assertVisible: "Start Game"
+- tapOn: "Start Game"
+- assertVisible: "Score: 0"
+- inputText: "My Guess"
+- tapOn: "Submit"

@@ -29,6 +29,9 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,6 +57,7 @@ fun CreateDeckScreen(
     val userProfile by userProfileViewModel.userProfile.collectAsState()
 
     Scaffold(
+            modifier = Modifier.semantics { testTagsAsResourceId = true },
             topBar = {
                 TopAppBar(
                         title = { Text("Create Flashcard Deck") },
@@ -223,7 +227,7 @@ fun CreateDeckScreen(
                                     viewModel.setStep(draftState.step + 1)
                                 }
                             },
-                            modifier = Modifier.weight(1f).padding(start = 8.dp),
+                            modifier = Modifier.weight(1f).padding(start = 8.dp).testTag("brainstorm_button"),
                             enabled = !isViewModelLoading
                     ) {
                         if (isViewModelLoading) {

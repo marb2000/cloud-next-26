@@ -121,6 +121,7 @@ dependencies {
     // Firebase AI Logic & Auth Ecosystem
     implementation(platform(libs.firebase.bom))
     implementation(libs.bundles.firebase)
+    implementation(libs.firebase.ai.ondevice)
     implementation(libs.kotlinx.serialization.json)
     ksp(libs.firebase.ai.ksp)
     

@@ -1,0 +1,13 @@
+appId: com.firebaseailogic.memotattoo
+---
+- launchApp
+- assertVisible: "Flashcard Hub"
+- tapOn: "+"
+- assertVisible: "Create Flashcard Deck"
+- inputText: "My Test Deck"
+- hideKeyboard
+- waitForAnimationToEnd
+- tapOn:
+    point: "789, 2232"
+- runScript: sleep.js
+- assertVisible: "Save Draft"

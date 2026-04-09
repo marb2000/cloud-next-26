@@ -2,7 +2,10 @@ package com.firebaseailogic.memotattoo.ui.flashcards
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.firebaseailogic.memotattoo.data.IFlashcardRepository
 import com.firebaseailogic.memotattoo.data.FlashcardRepository
@@ -11,6 +14,9 @@ import com.firebaseailogic.memotattoo.data.UserRepository
 import com.firebaseailogic.memotattoo.data.FirebaseManager
 import com.firebaseailogic.memotattoo.ai.AILogic
 import com.google.firebase.ai.Chat
+import com.google.firebase.ai.ondevice.FirebaseAIOnDevice
+import com.google.firebase.ai.ondevice.OnDeviceModelStatus
+import com.google.firebase.ai.ondevice.DownloadStatus
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -36,15 +42,17 @@ data class GameSessionUiState(
     val sessionTotalItems: Int = 0,
     val remainingCount: Int = 0,
     val pointsAnimTrigger: Int? = null,
-    val timeUpAnimTrigger: String? = null
+    val timeUpAnimTrigger: String? = null,
+    val isOffline: Boolean = false
 )
 
-class GameSessionViewModel(
+class GameSessionViewModel @JvmOverloads constructor(
+    application: Application,
     private val flashcardRepository: IFlashcardRepository = FlashcardRepository(),
     private val userRepository: IUserRepository = UserRepository(),
     private val auth: FirebaseAuth = FirebaseManager.auth,
     private val aiLogic: com.firebaseailogic.memotattoo.ai.IAILogic = AILogic
-) : ViewModel() {
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(GameSessionUiState())
     val uiState = _uiState.asStateFlow()
@@ -55,8 +63,29 @@ class GameSessionViewModel(
     private var timerJob: Job? = null
     private var deckOwnerId: String? = null
 
+    private fun isNetworkAvailable(): Boolean {
+        if (com.firebaseailogic.memotattoo.debug.DebugSettings.simulateOffline) {
+            return false
+        }
+        val connectivityManager = getApplication<Application>().getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
     fun initSession(deckId: String) {
         viewModelScope.launch {
+            val isOnline = isNetworkAvailable()
+            val status = FirebaseAIOnDevice.checkStatus()
+            
+            if (status == OnDeviceModelStatus.DOWNLOADABLE) {
+                launch {
+                    FirebaseAIOnDevice.download().collect { }
+                }
+            }
+            
+            _uiState.update { it.copy(isOffline = !isOnline) }
+
             try {
                 val deck = flashcardRepository.getDeck(deckId) ?: throw Exception("Deck not found")
                 deckOwnerId = deck["owner_id"] as? String
@@ -203,7 +232,7 @@ class GameSessionViewModel(
         
         addMessage(ChatMessage(true, guess))
         viewModelScope.launch {
-            _uiState.update { it.copy(isSubmitting = true) }
+            _uiState.update { it.copy(isSubmitting = true, isOffline = !isNetworkAvailable()) }
             try {
                 if (chat != null) {
                     val response = chat?.sendMessage(guess)

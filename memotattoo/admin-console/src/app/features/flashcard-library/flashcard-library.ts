@@ -208,7 +208,7 @@ import { UserManagementService, FirebaseUser } from '../../core/services/user-ma
   `
 })
 export class FlashcardLibrary implements OnInit {
-  private userManagementService = inject(UserManagementService);
+
   users = signal<FirebaseUser[]>([]);
   decks = signal<FlashcardDeck[]>([]);
   searchQuery = signal<string>('');
@@ -240,11 +240,10 @@ export class FlashcardLibrary implements OnInit {
     confirmText: string;
   } | null>(null);
 
-  constructor(
-    private logger: ActivityLogService, 
-    private router: Router,
-    private flashcardService: FlashcardService
-  ) { }
+  private logger = inject(ActivityLogService);
+  private router = inject(Router);
+  private flashcardService = inject(FlashcardService);
+  private userManagementService = inject(UserManagementService);
 
   ngOnInit() {
     this.flashcardService.getDecks().subscribe(decks => {

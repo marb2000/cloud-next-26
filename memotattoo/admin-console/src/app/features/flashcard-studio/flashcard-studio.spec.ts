@@ -7,8 +7,9 @@ import { FlashcardService } from '../../core/services/flashcard.service';
 import { AILogicService } from '../../core/services/ai-logic.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { of } from 'rxjs';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { signal } from '@angular/core';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { BucketService } from '../../core/services/bucket.service';
 
 describe('FlashcardStudio', () => {
   let component: FlashcardStudio;
@@ -17,6 +18,7 @@ describe('FlashcardStudio', () => {
   let mockUserService: any;
   let mockFlashcardService: any;
   let mockAILogicService: any;
+  let mockBucketService: any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -32,6 +34,9 @@ describe('FlashcardStudio', () => {
     mockFlashcardService = {
       saveDeck: vi.fn().mockResolvedValue('new-id')
     };
+    mockBucketService = {
+      uploadDraftImage: vi.fn().mockResolvedValue('https://storage/uploaded.jpg')
+    };
     mockAILogicService = {
       brainstormTopic: vi.fn().mockResolvedValue({ items: [] }),
       brainstormMore: vi.fn().mockResolvedValue([]),
@@ -43,10 +48,12 @@ describe('FlashcardStudio', () => {
 
     await TestBed.configureTestingModule({
       providers: [
+        FormBuilder,
         { provide: ActivityLogService, useValue: mockActivityLogService },
         { provide: UserService, useValue: mockUserService },
         { provide: FlashcardService, useValue: mockFlashcardService },
         { provide: AILogicService, useValue: mockAILogicService },
+        { provide: BucketService, useValue: mockBucketService },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -69,6 +76,8 @@ describe('FlashcardStudio', () => {
         styles: []
       }
     });
+
+    await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(FlashcardStudio);
     component = fixture.componentInstance;

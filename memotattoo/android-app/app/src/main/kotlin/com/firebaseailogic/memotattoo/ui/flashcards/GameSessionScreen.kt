@@ -130,6 +130,20 @@ fun GameSessionScreen(
                     }
                 },
                 actions = {
+                    if (uiState.isOffline) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) {
+                            Text(
+                                "Offline",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
                     Text(
                         text = "Time: ${uiState.timeRemaining}s",
                         modifier = Modifier.padding(end = 16.dp),

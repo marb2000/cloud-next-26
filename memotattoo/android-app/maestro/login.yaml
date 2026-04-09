@@ -1,0 +1,9 @@
+appId: com.firebaseailogic.memotattoo
+---
+- launchApp
+- assertVisible: "Login"
+- inputText: "test@example.com"
+- tapOn: "Password"
+- inputText: "password"
+- tapOn: "Log In"
+- assertVisible: "Flashcard Hub"

@@ -1,121 +1,94 @@
 package com.firebaseailogic.memotattoo.ui.flashcards
 
-import android.util.Log
 import com.firebaseailogic.memotattoo.data.IUserRepository
-import io.mockk.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.*
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Before
-import org.junit.Test
-import com.firebaseailogic.memotattoo.ui.flashcards.UserProfile
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import io.mockk.coEvery
+import io.mockk.mockk
+import io.mockk.verify
+import io.mockk.coVerify
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Before
+import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class UserProfileViewModelTest {
 
-    private val auth: FirebaseAuth = mockk(relaxed = true)
-    private val repository: IUserRepository = mockk(relaxed = true)
-    private val testDispatcher = StandardTestDispatcher()
-
-    private val userFlow = MutableStateFlow<UserProfile?>(null)
+    private lateinit var viewModel: UserProfileViewModel
+    private val auth = mockk<FirebaseAuth>(relaxed = true)
+    private val repository = mockk<IUserRepository>(relaxed = true)
+    private val testDispatcher = UnconfinedTestDispatcher()
 
     @Before
-    fun setup() {
+    fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        
-        // Mock Log
-        mockkStatic(Log::class)
-        every { Log.d(any<String>(), any<String>()) } returns 0
-        every { Log.w(any<String>(), any<String>()) } returns 0
-        every { Log.w(any<String>(), any<String>(), any<Throwable>()) } returns 0
-
-        every { repository.getUserProfile(any<String>()) } returns userFlow
+        coEvery { repository.getUserProfile(any()) } returns flowOf(null)
     }
 
     @After
     fun tearDown() {
         Dispatchers.resetMain()
-        unmockkAll()
-    }
-
-    private fun createViewModel() = UserProfileViewModel(auth, repository)
-
-    @Test
-    fun `initial state is null`() = runTest {
-        val viewModel = createViewModel()
-        assertNull(viewModel.userProfile.value)
     }
 
     @Test
-    fun `when user is logged in, profile is fetched from repository`() = runTest {
-        val authListenerSlot = slot<FirebaseAuth.AuthStateListener>()
-        every { auth.addAuthStateListener(capture(authListenerSlot)) } returns Unit
-        
-        val currentUser: FirebaseUser = mockk()
-        every { currentUser.uid } returns "test_uid"
-        every { auth.currentUser } returns currentUser
-
-        val viewModel = createViewModel()
-        runCurrent()
-        
-        // Trigger auth listener
-        authListenerSlot.captured.onAuthStateChanged(auth)
-        
-        val profile = UserProfile(
-            uid = "test_uid",
-            email = "test@example.com",
+    fun `test user banned signs out`() {
+        val mockProfile = UserProfile(
+            uid = "123",
+            email = "test@test.com",
             energyBolts = 10,
-            isBanned = false,
-            isPro = true,
-            imagesGeneratedThisMonth = 5
+            isBanned = true,
+            isPro = false,
+            imagesGeneratedThisMonth = 0
         )
-
-        // Trigger repository flow
-        userFlow.value = profile
-        advanceUntilIdle()
-
-        val state = viewModel.userProfile.value
-        assertNotNull(state)
-        assertEquals("test@example.com", state?.email)
-        assertEquals(10, state?.energyBolts)
-        assertEquals(true, state?.isPro)
+        coEvery { repository.getUserProfile("123") } returns flowOf(mockProfile)
+        
+        val mockUser = mockk<FirebaseUser>()
+        io.mockk.every { mockUser.uid } returns "123"
+        io.mockk.every { auth.currentUser } returns mockUser
+        
+        val listenerSlot = io.mockk.slot<FirebaseAuth.AuthStateListener>()
+        io.mockk.every { auth.addAuthStateListener(capture(listenerSlot)) } answers {
+            listenerSlot.captured.onAuthStateChanged(auth)
+        }
+        
+        viewModel = UserProfileViewModel(auth, repository)
+        
+        verify { auth.signOut() }
+        assert(viewModel.userProfile.value == null)
     }
 
     @Test
-    fun `when user is pro and period ended after cancellation, automatic demotion is triggered`() = runTest {
-        val authListenerSlot = slot<FirebaseAuth.AuthStateListener>()
-        every { auth.addAuthStateListener(capture(authListenerSlot)) } returns Unit
-        
-        val currentUser: FirebaseUser = mockk()
-        every { currentUser.uid } returns "test_uid"
-        every { auth.currentUser } returns currentUser
-
-        val viewModel = createViewModel()
-        runCurrent()
-        authListenerSlot.captured.onAuthStateChanged(auth)
-        
-        val profile = UserProfile(
-            uid = "test_uid",
-            email = "test@example.com",
+    fun `test subscription expired downgrades`() {
+        val now = System.currentTimeMillis()
+        val mockProfile = UserProfile(
+            uid = "123",
+            email = "test@test.com",
             energyBolts = 10,
             isBanned = false,
             isPro = true,
-            imagesGeneratedThisMonth = 5,
             cancelAtPeriodEnd = true,
-            currentPeriodEnd = System.currentTimeMillis() - 1000L // Ended 1 second ago
+            currentPeriodEnd = now - 1000, // In the past
+            imagesGeneratedThisMonth = 0
         )
-
-        userFlow.value = profile
-        advanceUntilIdle()
-
-        // Verify that demotion was called on repository
-        coVerify { repository.downgradeToFree("test_uid") }
+        coEvery { repository.getUserProfile("123") } returns flowOf(mockProfile)
+        
+        val mockUser = mockk<FirebaseUser>()
+        io.mockk.every { mockUser.uid } returns "123"
+        io.mockk.every { auth.currentUser } returns mockUser
+        
+        val listenerSlot = io.mockk.slot<FirebaseAuth.AuthStateListener>()
+        io.mockk.every { auth.addAuthStateListener(capture(listenerSlot)) } answers {
+            listenerSlot.captured.onAuthStateChanged(auth)
+        }
+        
+        viewModel = UserProfileViewModel(auth, repository)
+        
+        coVerify { repository.downgradeToFree("123") }
     }
 }

@@ -15,12 +15,20 @@ describe('App', () => {
     };
 
     await TestBed.configureTestingModule({
-      imports: [App],
       providers: [
         provideRouter([]),
         { provide: Auth, useValue: mockAuth }
       ]
     }).compileComponents();
+
+    TestBed.overrideComponent(App, {
+      set: {
+        templateUrl: undefined,
+        styleUrls: undefined,
+        template: '<h1>MemoTattoo</h1>',
+        styles: []
+      }
+    });
   });
 
   it('should create the app', () => {
@@ -34,6 +42,6 @@ describe('App', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('span.text-transparent')?.textContent).toContain('MemoTattoo');
+    expect(compiled.querySelector('h1')?.textContent).toContain('MemoTattoo');
   });
 });

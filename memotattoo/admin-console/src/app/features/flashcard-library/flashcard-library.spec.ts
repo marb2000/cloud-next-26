@@ -1,10 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FlashcardLibrary } from './flashcard-library';
 import { ActivityLogService } from '../../core/services/activity-log.service';
-import { Router } from '@angular/router';
-import { FlashcardService, FlashcardDeck } from '../../core/services/flashcard.service';
+import { Router, ActivatedRoute } from '@angular/router';
+import { FlashcardService } from '../../core/services/flashcard.service';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { of } from 'rxjs';
+import { UserManagementService } from '../../core/services/user-management.service';
+import { BucketService } from '../../core/services/bucket.service';
+import { FormBuilder } from '@angular/forms';
+import { AILogicService } from '../../core/services/ai-logic.service';
 
 describe('FlashcardLibrary', () => {
   let component: FlashcardLibrary;
@@ -12,6 +16,9 @@ describe('FlashcardLibrary', () => {
   let mockActivityLogService: any;
   let mockRouter: any;
   let mockFlashcardService: any;
+  let mockUserManagementService: any;
+  let mockBucketService: any;
+  let mockAILogicService: any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -29,14 +36,40 @@ describe('FlashcardLibrary', () => {
       updateStatus: vi.fn().mockResolvedValue(undefined),
       deleteDeck: vi.fn().mockResolvedValue(undefined)
     };
+    mockUserManagementService = {
+      getUsers: vi.fn().mockReturnValue(of([]))
+    };
+    mockBucketService = {
+      uploadDraftImage: vi.fn().mockResolvedValue('https://storage/uploaded.jpg')
+    };
+    mockAILogicService = {
+      brainstormTopic: vi.fn().mockResolvedValue({ items: [] }),
+      brainstormMore: vi.fn().mockResolvedValue([]),
+      generateConceptImage: vi.fn().mockResolvedValue('mock-image-url'),
+      refineConceptImage: vi.fn().mockResolvedValue('mock-refined-url'),
+      generateAndPersistConceptImage: vi.fn().mockResolvedValue('https://storage/image.jpg'),
+      refineAndPersistConceptImage: vi.fn().mockResolvedValue('https://storage/refined.jpg')
+    };
 
     await TestBed.configureTestingModule({
+      imports: [FlashcardLibrary],
       providers: [
+        FormBuilder,
         { provide: ActivityLogService, useValue: mockActivityLogService },
         { provide: Router, useValue: mockRouter },
-        { provide: FlashcardService, useValue: mockFlashcardService }
+        { provide: FlashcardService, useValue: mockFlashcardService },
+        { provide: UserManagementService, useValue: mockUserManagementService },
+        { provide: BucketService, useValue: mockBucketService },
+        { provide: AILogicService, useValue: mockAILogicService },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            params: of({}),
+            queryParamMap: of({ get: () => null })
+          }
+        }
       ]
-    }).compileComponents();
+    });
 
     TestBed.overrideComponent(FlashcardLibrary, {
       set: {
@@ -46,6 +79,8 @@ describe('FlashcardLibrary', () => {
         styles: []
       }
     });
+
+    await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(FlashcardLibrary);
     component = fixture.componentInstance;

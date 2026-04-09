@@ -1,4 +1,4 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
 import { Router } from '@angular/router';
 import { auth, firestore } from '../firebase/firebase';
@@ -18,7 +18,9 @@ export class Auth {
     this.resolveAuthState = resolve;
   });
 
-  constructor(private router: Router) {
+  private router = inject(Router);
+
+  constructor() {
     onAuthStateChanged(auth, async (user) => {
       this.currentUser.set(user);
       if (user && user.email) {

@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { GameStateService } from './game-state.service';
 import { UserService } from '../../core/auth/user.service';
 import { AILogicService } from '../../core/services/ai-logic.service';
+import { FlashcardService } from '../../core/services/flashcard.service';
 import { of } from 'rxjs';
 import { signal } from '@angular/core';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -12,6 +13,7 @@ describe('GameSimulation', () => {
   let component: GameSimulation;
   let fixture: ComponentFixture<GameSimulation>;
   let mockAILogicService: any;
+  let mockFlashcardService: any;
 
   beforeEach(async () => {
     const mockActivatedRoute = {
@@ -47,17 +49,31 @@ describe('GameSimulation', () => {
       sendGameGuess: vi.fn().mockResolvedValue({ text: 'AI response' })
     };
 
+    mockFlashcardService = {
+      getDeckById: vi.fn().mockResolvedValue({ topic: 'Test Deck', contentBase: { items: [] } })
+    };
+
     await TestBed.configureTestingModule({
-      imports: [GameSimulation],
       providers: [
         { provide: ActivatedRoute, useValue: mockActivatedRoute },
         { provide: Router, useValue: mockRouter },
         { provide: GameStateService, useValue: mockGameStateService },
         { provide: UserService, useValue: mockUserService },
-        { provide: AILogicService, useValue: mockAILogicService }
+        { provide: AILogicService, useValue: mockAILogicService },
+        { provide: FlashcardService, useValue: mockFlashcardService }
       ]
-    })
-    .compileComponents();
+    }).compileComponents();
+
+    TestBed.overrideComponent(GameSimulation, {
+      set: {
+        templateUrl: undefined,
+        styleUrl: undefined,
+        template: '<div></div>',
+        styles: []
+      }
+    });
+
+    await TestBed.compileComponents();
 
     fixture = TestBed.createComponent(GameSimulation);
     component = fixture.componentInstance;

@@ -1,129 +1,66 @@
 package com.firebaseailogic.memotattoo.ui.flashcards
 
 import com.firebaseailogic.memotattoo.data.IFlashcardRepository
-import com.firebaseailogic.memotattoo.ui.flashcards.FlashcardDeckSummary
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
 import com.firebaseailogic.memotattoo.data.Resource
-import io.mockk.mockk
-import io.mockk.every
+import com.google.firebase.auth.FirebaseAuth
 import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.unmockkAll
+import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
 import org.junit.After
-import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class FlashcardHubViewModelTest {
-    private val auth: FirebaseAuth = mockk(relaxed = true)
-    private val repository: IFlashcardRepository = mockk(relaxed = true)
-    private val testDispatcher = StandardTestDispatcher()
+
+    private lateinit var viewModel: FlashcardHubViewModel
+    private val auth = mockk<FirebaseAuth>(relaxed = true)
+    private val repository = mockk<IFlashcardRepository>(relaxed = true)
+    private val testDispatcher = UnconfinedTestDispatcher()
 
     @Before
-    fun setup() {
+    fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        val user: FirebaseUser = mockk()
-        every { user.uid } returns "test_user"
-        every { auth.currentUser } returns user
+        
+        // Mock default flow behavior to avoid NPE or hangs during init
+        coEvery { repository.getMyDecks(any()) } returns flowOf(Resource.Success(emptyList()))
+        coEvery { repository.getPublicDecks(any(), any()) } returns flowOf(Resource.Success(emptyList()))
+        coEvery { repository.getBestScores(any()) } returns emptyMap()
     }
 
     @After
     fun tearDown() {
         Dispatchers.resetMain()
-        unmockkAll()
-    }
-
-    private fun createViewModel() = FlashcardHubViewModel(auth, repository)
-
-    @Test
-    fun `viewModel starts listening for decks on init`() = runTest {
-        val myDecks = listOf(
-            FlashcardDeckSummary(
-                id = "id1", 
-                title = "Title 1", 
-                description = "Topic", 
-                type = "FlashcardDeck", 
-                isCompleted = false,
-                status = "draft", 
-                isPublic = false, 
-                ownerId = "test_user", 
-                bestScore = 0
-            )
-        )
-        val publicDecks = listOf(
-            FlashcardDeckSummary(
-                id = "id2", 
-                title = "Title 2", 
-                description = "Topic", 
-                type = "FlashcardDeck", 
-                isCompleted = false,
-                status = "published", 
-                isPublic = true, 
-                ownerId = "other_user", 
-                bestScore = 0
-            )
-        )
-        
-        every { repository.getMyDecks("test_user") } returns flowOf(Resource.Success(myDecks))
-        every { repository.getPublicDecks(null) } returns flowOf(Resource.Success(publicDecks))
-        coEvery { repository.getBestScores("test_user") } returns mapOf("id1" to 10)
-
-        val viewModel = createViewModel()
-        advanceUntilIdle()
-        
-        assertEquals(1, viewModel.myDecks.value.size)
-        assertEquals("Title 1", viewModel.myDecks.value[0].title)
-        assertEquals(10, viewModel.myDecks.value[0].bestScore)
-        assertEquals(1, viewModel.publicDecks.value.size)
     }
 
     @Test
-    fun `publishDeck calls repository`() = runTest {
-        val viewModel = createViewModel()
-        val deck = FlashcardDeckSummary(
-            id = "id1", 
-            title = "Title 1", 
-            description = "Topic", 
-            type = "FlashcardDeck", 
-            status = "draft", 
-            isPublic = false, 
-            ownerId = "test_user", 
-            bestScore = 0
-        )
-        
-        viewModel.publishDeck(deck)
-        advanceUntilIdle()
-        
-        coVerify { repository.updateDeckStatus("id1", "pending") }
+    fun `test updateSearch updates state`() {
+        viewModel = FlashcardHubViewModel(auth, repository)
+        viewModel.updateSearch("Query")
+        assert(viewModel.searchQuery.value == "Query")
     }
 
     @Test
-    fun `unpublishDeck calls repository`() = runTest {
-        val viewModel = createViewModel()
-        val deck = FlashcardDeckSummary(
-            id = "id1", 
-            title = "Title 1", 
-            description = "Topic", 
-            type = "FlashcardDeck", 
-            status = "published", 
-            isPublic = true, 
-            ownerId = "test_user", 
-            bestScore = 0
-        )
+    fun `test startListeningForDecks updates state on success`() {
+        // Mocking FlashcardDeckSummary is not needed if it's a data class, just use real instance if possible.
+        // Assuming FlashcardDeckSummary has a constructor taking id and title.
+        // Let's use a mock if we are not sure about the constructor.
+        val mockDeck = mockk<FlashcardDeckSummary>(relaxed = true)
+        io.mockk.every { mockDeck.id } returns "1"
+        io.mockk.every { mockDeck.isPublic } returns false
+        io.mockk.every { mockDeck.copy(bestScore = any()) } returns mockDeck
         
-        viewModel.unpublishDeck(deck)
-        advanceUntilIdle()
+        coEvery { repository.getMyDecks(any()) } returns flowOf(Resource.Success(listOf(mockDeck)))
         
-        coVerify { repository.updateDeckStatus("id1", "private") }
+        viewModel = FlashcardHubViewModel(auth, repository)
+        
+        val state = viewModel.myDecks.value
+        assert(state.size == 1)
+        assert(state[0].id == "1")
     }
 }

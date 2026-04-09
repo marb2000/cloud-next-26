@@ -175,6 +175,7 @@ object AILogic : IAILogic {
                 val gameMasterModel =
                         Firebase.ai(backend = GenerativeBackend.vertexAI(location = "global")).generativeModel(
                                 modelName = "gemini-2.5-flash",
+                                onDeviceConfig = OnDeviceConfig(mode = InferenceMode.PREFER_ON_DEVICE),
                                 systemInstruction =
                                         content {
                                                 text(

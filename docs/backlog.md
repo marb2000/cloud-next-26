@@ -28,9 +28,15 @@ This document tracks upcoming features, improvements, and technical debt for the
 
 ### Others
 - [ ] Playwright tests for Admin Console
-- [ ] Exporesso test for Android App
+- [ ] Maestro Golden Path tests for Android App
+- [ ] Screenshot tests for Android App (Roborazzi)
+- [ ] Integration tests for Android App (Robolectric)
+- [ ] Edge case tests (Empty states, Network failures)
 - [ ] Include Happy Paths: Automatic Function Calling and JSON Schema Generation
 - [ ] Change the Console UI Deck Creator to use a stepper UI
+- [ ] Include history for chat and function calls in Admin Console game
+- [ ] Include Android Hybrid on Android app for the game part. Not sure, how we will solve the issue of the game not being able to load the images.
+- [ ] Introduce Cloud Trigger for AI Logic 
 
 
 

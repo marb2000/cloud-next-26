@@ -1,0 +1,230 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90m/Users/ramosmiguel/Source/cloud-next-26/memotattoo/admin-console[39m
+
+ [32m✓[39m src/app/core/services/user-management.service.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/app/core/services/flashcard.service.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+[90mstderr[2m | src/app/core/services/ai-logic.service.spec.ts[2m > [22m[2mAILogicService[2m > [22m[2mbrainstormTopic[2m > [22m[2mshould throw error if JSON is invalid
+[22m[39mParse error in AILogicService: SyntaxError: Unexpected token 'i', "invalid json" is not valid JSON
+    at JSON.parse (<anonymous>)
+    at AILogicService.parseJSONResponse [90m(/Users/ramosmiguel/Source/cloud-next-26/memotattoo/admin-console/[39msrc/app/core/services/ai-logic.service.ts:178:19[90m)[39m
+    at AILogicService.brainstormTopic [90m(/Users/ramosmiguel/Source/cloud-next-26/memotattoo/admin-console/[39msrc/app/core/services/ai-logic.service.ts:20:17[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at [90m/Users/ramosmiguel/Source/cloud-next-26/memotattoo/admin-console/[39msrc/app/core/services/ai-logic.service.spec.ts:68:7
+    at [90mfile:///Users/ramosmiguel/Source/cloud-next-26/memotattoo/admin-console/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:915:20
+
+ [32m✓[39m src/app/core/services/ai-logic.service.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+[90mstdout[2m | src/app/features/auth/auth.spec.ts
+[22m[39mApp Check debug token: 283506C0-51BB-4F2D-83BE-4684B26E5267. You will need to add it to your app's App Check settings in the Firebase console for it to work.
+
+[90mstdout[2m | src/app/core/auth/auth.spec.ts
+[22m[39mApp Check debug token: 283506C0-51BB-4F2D-83BE-4684B26E5267. You will need to add it to your app's App Check settings in the Firebase console for it to work.
+
+[90mstdout[2m | src/app/features/flashcard-library/flashcard-library.spec.ts
+[22m[39mApp Check debug token: 283506C0-51BB-4F2D-83BE-4684B26E5267. You will need to add it to your app's App Check settings in the Firebase console for it to work.
+
+[90mstdout[2m | src/app/features/deck-moderation/deck-moderation.spec.ts
+[22m[39mApp Check debug token: 283506C0-51BB-4F2D-83BE-4684B26E5267. You will need to add it to your app's App Check settings in the Firebase console for it to work.
+
+[90mstdout[2m | src/app/features/dashboard/dashboard.spec.ts
+[22m[39mApp Check debug token: 283506C0-51BB-4F2D-83BE-4684B26E5267. You will need to add it to your app's App Check settings in the Firebase console for it to work.
+
+[90mstdout[2m | src/app/core/auth/admin-guard.spec.ts
+[22m[39mApp Check debug token: 283506C0-51BB-4F2D-83BE-4684B26E5267. You will need to add it to your app's App Check settings in the Firebase console for it to work.
+
+[90mstdout[2m | src/app/app.spec.ts
+[22m[39mApp Check debug token: 283506C0-51BB-4F2D-83BE-4684B26E5267. You will need to add it to your app's App Check settings in the Firebase console for it to work.
+
+[90mstdout[2m | src/app/features/flashcard-studio/flashcard-studio.spec.ts
+[22m[39mApp Check debug token: 283506C0-51BB-4F2D-83BE-4684B26E5267. You will need to add it to your app's App Check settings in the Firebase console for it to work.
+
+[90mstdout[2m | src/app/features/game-simulation/game-simulation.spec.ts
+[22m[39mApp Check debug token: 283506C0-51BB-4F2D-83BE-4684B26E5267. You will need to add it to your app's App Check settings in the Firebase console for it to work.
+
+ [31m❯[39m src/app/app.spec.ts [2m([22m[2m2 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 3[2mms[22m[39m
+[31m     [31m×[31m should create the app[39m[32m 3[2mms[22m[39m
+[31m     [31m×[31m should render title[39m[32m 0[2mms[22m[39m
+ [32m✓[39m src/app/core/auth/admin-guard.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 1[2mms[22m[39m
+ [31m❯[39m src/app/features/auth/auth.spec.ts [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 4[2mms[22m[39m
+[31m     [31m×[31m should create[39m[32m 4[2mms[22m[39m
+ [31m❯[39m src/app/core/auth/auth.spec.ts [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 7[2mms[22m[39m
+[31m     [31m×[31m should be created[39m[32m 7[2mms[22m[39m
+ [31m❯[39m src/app/features/game-simulation/game-simulation.spec.ts [2m([22m[2m2 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 4[2mms[22m[39m
+[31m     [31m×[31m should create[39m[32m 3[2mms[22m[39m
+[31m     [31m×[31m should delegate chat guesses to aiLogicService[39m[32m 0[2mms[22m[39m
+ [31m❯[39m src/app/features/flashcard-studio/flashcard-studio.spec.ts [2m([22m[2m10 tests[22m[2m | [22m[31m10 failed[39m[2m)[22m[32m 6[2mms[22m[39m
+[31m     [31m×[31m should create[39m[32m 3[2mms[22m[39m
+[31m       [31m×[31m should call flashcardService.saveDeck and preserve ownership when editing[39m[32m 0[2mms[22m[39m
+[31m       [31m×[31m should set isPublic to false when status is private[39m[32m 0[2mms[22m[39m
+[31m       [31m×[31m should call aiLogicService.brainstormTopic[39m[32m 0[2mms[22m[39m
+[31m       [31m×[31m should use generateAndPersistConceptImage for new images[39m[32m 0[2mms[22m[39m
+[31m       [31m×[31m should use refineAndPersistConceptImage for refining[39m[32m 0[2mms[22m[39m
+[31m         [31m×[31m should return false for new deck if images are missing[39m[32m 0[2mms[22m[39m
+[31m         [31m×[31m should return true for new deck if all images are present[39m[32m 0[2mms[22m[39m
+[31m         [31m×[31m should return true for existing deck even if images are missing[39m[32m 0[2mms[22m[39m
+[31m         [31m×[31m should return false if there are no concepts at all[39m[32m 0[2mms[22m[39m
+ [32m✓[39m src/app/features/dashboard/dashboard.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 51[2mms[22m[39m
+ [32m✓[39m src/app/features/deck-moderation/deck-moderation.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [31m❯[39m src/app/features/flashcard-library/flashcard-library.spec.ts [2m([22m[2m6 tests[22m[2m | [22m[31m6 failed[39m[2m)[22m[32m 47[2mms[22m[39m
+[31m     [31m×[31m should create and fetch decks from service[39m[32m 39[2mms[22m[39m
+[31m       [31m×[31m should call flashcardService.updateStatus when publishing[39m[32m 2[2mms[22m[39m
+[31m       [31m×[31m should call flashcardService.updateStatus when setting private[39m[32m 2[2mms[22m[39m
+[31m       [31m×[31m should call deleteDeck when type is delete[39m[32m 1[2mms[22m[39m
+[31m       [31m×[31m should call updateStatus when type is unlock[39m[32m 2[2mms[22m[39m
+[31m       [31m×[31m should filter correctly based on showPrivateDecks[39m[32m 1[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 22 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/app/app.spec.ts[2m > [22mApp[2m > [22mshould create the app
+[41m[1m FAIL [22m[49m src/app/app.spec.ts[2m > [22mApp[2m > [22mshould render title
+[31m[1mError[22m: Component 'App' is not resolved:
+ - templateUrl: ./app.html
+Did you run and wait for 'resolveComponentResources()'?[39m
+[90m [2m❯[22m App.get node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:[2m17829:17[22m[39m
+[90m [2m❯[22m getComponentDef node_modules/@angular/core/fesm2022/testing.mjs:[2m1154:16[22m[39m
+[90m [2m❯[22m isStandaloneComponent node_modules/@angular/core/fesm2022/testing.mjs:[2m1150:15[22m[39m
+[90m [2m❯[22m queueTypesFromModulesArrayRecur node_modules/@angular/core/fesm2022/testing.mjs:[2m925:20[22m[39m
+[90m [2m❯[22m TestBedCompiler.queueTypesFromModulesArray node_modules/@angular/core/fesm2022/testing.mjs:[2m943:5[22m[39m
+[90m [2m❯[22m TestBedCompiler.configureTestingModule node_modules/@angular/core/fesm2022/testing.mjs:[2m567:12[22m[39m
+[90m [2m❯[22m TestBedImpl.configureTestingModule node_modules/@angular/core/fesm2022/testing.mjs:[2m1402:19[22m[39m
+[90m [2m❯[22m TestBedImpl.configureTestingModule node_modules/@angular/core/fesm2022/testing.mjs:[2m1273:33[22m[39m
+[36m [2m❯[22m src/app/app.spec.ts:[2m17:19[22m[39m
+    [90m 15| [39m    }[33m;[39m
+    [90m 16| [39m
+    [90m 17| [39m    [35mawait[39m [33mTestBed[39m[33m.[39m[34mconfigureTestingModule[39m({
+    [90m   | [39m                  [31m^[39m
+    [90m 18| [39m      imports[33m:[39m [[33mApp[39m][33m,[39m
+    [90m 19| [39m      providers[33m:[39m [
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/22]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/app/core/auth/auth.spec.ts[2m > [22mAuth[2m > [22mshould be created
+[31m[1mError[22m: NG0202: This constructor is not compatible with Angular Dependency Injection because its dependency at index 0 of the parameter list is invalid.
+This can happen if the dependency type is a primitive like a string or if an ancestor of this class is missing an Angular decorator.
+
+Please check that 1) the type for the parameter at index 0 is correct and 2) the correct Angular decorators are defined for this class and its ancestors.[39m
+[90m [2m❯[22m ɵɵinvalidFactoryDep node_modules/@angular/core/fesm2022/_untracked-chunk.mjs:[2m685:9[22m[39m
+[90m [2m❯[22m Object.Auth_Factory [as factory] ng:/Auth/ɵfac.js:[2m5:48[22m[39m
+[90m [2m❯[22m node_modules/@angular/core/fesm2022/_untracked-chunk.mjs:[2m1311:35[22m[39m
+[90m [2m❯[22m runInInjectorProfilerContext node_modules/@angular/core/fesm2022/_untracked-chunk.mjs:[2m442:5[22m[39m
+[90m [2m❯[22m R3Injector.hydrate node_modules/@angular/core/fesm2022/_untracked-chunk.mjs:[2m1309:11[22m[39m
+[90m [2m❯[22m R3Injector.get node_modules/@angular/core/fesm2022/_untracked-chunk.mjs:[2m1201:23[22m[39m
+[90m [2m❯[22m TestBedImpl.inject node_modules/@angular/core/fesm2022/testing.mjs:[2m1413:48[22m[39m
+[90m [2m❯[22m TestBedImpl.inject node_modules/@angular/core/fesm2022/testing.mjs:[2m1300:33[22m[39m
+[36m [2m❯[22m src/app/core/auth/auth.spec.ts:[2m16:23[22m[39m
+    [90m 14| [39m      ]
+    [90m 15| [39m    })[33m;[39m
+    [90m 16| [39m    service [33m=[39m [33mTestBed[39m[33m.[39m[34minject[39m([33mAuth[39m)[33m;[39m
+    [90m   | [39m                      [31m^[39m
+    [90m 17| [39m  })[33m;[39m
+    [90m 18| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/22]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/app/features/auth/auth.spec.ts[2m > [22mAuth[2m > [22mshould create
+[31m[1mError[22m: Component 'Auth' is not resolved:
+ - templateUrl: ./auth.html
+ - styleUrls: ["./auth.css"]
+Did you run and wait for 'resolveComponentResources()'?[39m
+[90m [2m❯[22m Auth.get node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:[2m17829:17[22m[39m
+[90m [2m❯[22m getComponentDef node_modules/@angular/core/fesm2022/testing.mjs:[2m1154:16[22m[39m
+[90m [2m❯[22m isStandaloneComponent node_modules/@angular/core/fesm2022/testing.mjs:[2m1150:15[22m[39m
+[90m [2m❯[22m queueTypesFromModulesArrayRecur node_modules/@angular/core/fesm2022/testing.mjs:[2m925:20[22m[39m
+[90m [2m❯[22m TestBedCompiler.queueTypesFromModulesArray node_modules/@angular/core/fesm2022/testing.mjs:[2m943:5[22m[39m
+[90m [2m❯[22m TestBedCompiler.configureTestingModule node_modules/@angular/core/fesm2022/testing.mjs:[2m567:12[22m[39m
+[90m [2m❯[22m TestBedImpl.configureTestingModule node_modules/@angular/core/fesm2022/testing.mjs:[2m1402:19[22m[39m
+[90m [2m❯[22m TestBedImpl.configureTestingModule node_modules/@angular/core/fesm2022/testing.mjs:[2m1273:33[22m[39m
+[36m [2m❯[22m src/app/features/auth/auth.spec.ts:[2m22:19[22m[39m
+    [90m 20| [39m    mockRouter [33m=[39m { navigate[33m:[39m vi[33m.[39m[34mfn[39m() }[33m;[39m
+    [90m 21| [39m
+    [90m 22| [39m    [35mawait[39m [33mTestBed[39m[33m.[39m[34mconfigureTestingModule[39m({
+    [90m   | [39m                  [31m^[39m
+    [90m 23| [39m      imports[33m:[39m [[33mAuthComponent[39m][33m,[39m
+    [90m 24| [39m      providers[33m:[39m [
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/22]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/app/features/flashcard-studio/flashcard-studio.spec.ts[2m > [22mFlashcardStudio[2m > [22mshould create
+[41m[1m FAIL [22m[49m src/app/features/flashcard-studio/flashcard-studio.spec.ts[2m > [22mFlashcardStudio[2m > [22msaveToGlobalLibrary[2m > [22mshould call flashcardService.saveDeck and preserve ownership when editing
+[41m[1m FAIL [22m[49m src/app/features/flashcard-studio/flashcard-studio.spec.ts[2m > [22mFlashcardStudio[2m > [22msaveToGlobalLibrary[2m > [22mshould set isPublic to false when status is private
+[41m[1m FAIL [22m[49m src/app/features/flashcard-studio/flashcard-studio.spec.ts[2m > [22mFlashcardStudio[2m > [22mAI Logic Calls[2m > [22mshould call aiLogicService.brainstormTopic
+[41m[1m FAIL [22m[49m src/app/features/flashcard-studio/flashcard-studio.spec.ts[2m > [22mFlashcardStudio[2m > [22mAI Logic Calls[2m > [22mshould use generateAndPersistConceptImage for new images
+[41m[1m FAIL [22m[49m src/app/features/flashcard-studio/flashcard-studio.spec.ts[2m > [22mFlashcardStudio[2m > [22mAI Logic Calls[2m > [22mshould use refineAndPersistConceptImage for refining
+[41m[1m FAIL [22m[49m src/app/features/flashcard-studio/flashcard-studio.spec.ts[2m > [22mFlashcardStudio[2m > [22mAI Logic Calls[2m > [22mcanPublish validation[2m > [22mshould return false for new deck if images are missing
+[41m[1m FAIL [22m[49m src/app/features/flashcard-studio/flashcard-studio.spec.ts[2m > [22mFlashcardStudio[2m > [22mAI Logic Calls[2m > [22mcanPublish validation[2m > [22mshould return true for new deck if all images are present
+[41m[1m FAIL [22m[49m src/app/features/flashcard-studio/flashcard-studio.spec.ts[2m > [22mFlashcardStudio[2m > [22mAI Logic Calls[2m > [22mcanPublish validation[2m > [22mshould return true for existing deck even if images are missing
+[41m[1m FAIL [22m[49m src/app/features/flashcard-studio/flashcard-studio.spec.ts[2m > [22mFlashcardStudio[2m > [22mAI Logic Calls[2m > [22mcanPublish validation[2m > [22mshould return false if there are no concepts at all
+[31m[1mError[22m: Component 'FlashcardStudio' is not resolved:
+ - templateUrl: ./flashcard-studio.html
+ - styleUrls: ["./flashcard-studio.css"]
+Did you run and wait for 'resolveComponentResources()'?[39m
+[90m [2m❯[22m FlashcardStudio.get node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:[2m17829:17[22m[39m
+[90m [2m❯[22m getComponentDef node_modules/@angular/core/fesm2022/testing.mjs:[2m1154:16[22m[39m
+[90m [2m❯[22m isStandaloneComponent node_modules/@angular/core/fesm2022/testing.mjs:[2m1150:15[22m[39m
+[90m [2m❯[22m queueTypesFromModulesArrayRecur node_modules/@angular/core/fesm2022/testing.mjs:[2m925:20[22m[39m
+[90m [2m❯[22m TestBedCompiler.queueTypesFromModulesArray node_modules/@angular/core/fesm2022/testing.mjs:[2m943:5[22m[39m
+[90m [2m❯[22m TestBedCompiler.configureTestingModule node_modules/@angular/core/fesm2022/testing.mjs:[2m567:12[22m[39m
+[90m [2m❯[22m TestBedImpl.configureTestingModule node_modules/@angular/core/fesm2022/testing.mjs:[2m1402:19[22m[39m
+[90m [2m❯[22m TestBedImpl.configureTestingModule node_modules/@angular/core/fesm2022/testing.mjs:[2m1273:33[22m[39m
+[36m [2m❯[22m src/app/features/flashcard-studio/flashcard-studio.spec.ts:[2m49:19[22m[39m
+    [90m 47| [39m    }[33m;[39m
+    [90m 48| [39m
+    [90m 49| [39m    [35mawait[39m [33mTestBed[39m[33m.[39m[34mconfigureTestingModule[39m({
+    [90m   | [39m                  [31m^[39m
+    [90m 50| [39m      imports[33m:[39m [[33mFlashcardStudio[39m][33m,[39m
+    [90m 51| [39m      providers[33m:[39m [
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/22]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/app/features/flashcard-library/flashcard-library.spec.ts[2m > [22mFlashcardLibrary[2m > [22mshould create and fetch decks from service
+[41m[1m FAIL [22m[49m src/app/features/flashcard-library/flashcard-library.spec.ts[2m > [22mFlashcardLibrary[2m > [22mexecuteStatusUpdate[2m > [22mshould call flashcardService.updateStatus when publishing
+[41m[1m FAIL [22m[49m src/app/features/flashcard-library/flashcard-library.spec.ts[2m > [22mFlashcardLibrary[2m > [22mexecuteStatusUpdate[2m > [22mshould call flashcardService.updateStatus when setting private
+[41m[1m FAIL [22m[49m src/app/features/flashcard-library/flashcard-library.spec.ts[2m > [22mFlashcardLibrary[2m > [22mhandleConfirmAction[2m > [22mshould call deleteDeck when type is delete
+[41m[1m FAIL [22m[49m src/app/features/flashcard-library/flashcard-library.spec.ts[2m > [22mFlashcardLibrary[2m > [22mhandleConfirmAction[2m > [22mshould call updateStatus when type is unlock
+[41m[1m FAIL [22m[49m src/app/features/flashcard-library/flashcard-library.spec.ts[2m > [22mFlashcardLibrary[2m > [22mFiltering[2m > [22mshould filter correctly based on showPrivateDecks
+[31m[1mError[22m: NG0202: This constructor is not compatible with Angular Dependency Injection because its dependency at index 0 of the parameter list is invalid.
+This can happen if the dependency type is a primitive like a string or if an ancestor of this class is missing an Angular decorator.
+
+Please check that 1) the type for the parameter at index 0 is correct and 2) the correct Angular decorators are defined for this class and its ancestors.[39m
+[90m [2m❯[22m ɵɵinvalidFactoryDep node_modules/@angular/core/fesm2022/_untracked-chunk.mjs:[2m685:9[22m[39m
+[90m [2m❯[22m NodeInjectorFactory.FlashcardLibrary_Factory [as factory] ng:/FlashcardLibrary/ɵfac.js:[2m5:60[22m[39m
+[90m [2m❯[22m getNodeInjectable node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:[2m1044:38[22m[39m
+[90m [2m❯[22m instantiateAllDirectives node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:[2m4997:23[22m[39m
+[90m [2m❯[22m createDirectivesInstances node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:[2m4856:3[22m[39m
+[90m [2m❯[22m ComponentFactory.create node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:[2m8304:9[22m[39m
+[90m [2m❯[22m initComponent node_modules/@angular/core/fesm2022/testing.mjs:[2m1475:45[22m[39m
+[90m [2m❯[22m NoopNgZone.run node_modules/@angular/core/fesm2022/_untracked-chunk.mjs:[2m2562:15[22m[39m
+[90m [2m❯[22m TestBedImpl.createComponent node_modules/@angular/core/fesm2022/testing.mjs:[2m1480:37[22m[39m
+[90m [2m❯[22m TestBedImpl.createComponent node_modules/@angular/core/fesm2022/testing.mjs:[2m1306:33[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/22]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/app/features/game-simulation/game-simulation.spec.ts[2m > [22mGameSimulation[2m > [22mshould create
+[41m[1m FAIL [22m[49m src/app/features/game-simulation/game-simulation.spec.ts[2m > [22mGameSimulation[2m > [22mshould delegate chat guesses to aiLogicService
+[31m[1mError[22m: Component 'GameSimulation' is not resolved:
+ - templateUrl: ./game-simulation.html
+ - styleUrl: ./game-simulation.css
+Did you run and wait for 'resolveComponentResources()'?[39m
+[90m [2m❯[22m GameSimulation.get node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:[2m17829:17[22m[39m
+[90m [2m❯[22m getComponentDef node_modules/@angular/core/fesm2022/testing.mjs:[2m1154:16[22m[39m
+[90m [2m❯[22m isStandaloneComponent node_modules/@angular/core/fesm2022/testing.mjs:[2m1150:15[22m[39m
+[90m [2m❯[22m queueTypesFromModulesArrayRecur node_modules/@angular/core/fesm2022/testing.mjs:[2m925:20[22m[39m
+[90m [2m❯[22m TestBedCompiler.queueTypesFromModulesArray node_modules/@angular/core/fesm2022/testing.mjs:[2m943:5[22m[39m
+[90m [2m❯[22m TestBedCompiler.configureTestingModule node_modules/@angular/core/fesm2022/testing.mjs:[2m567:12[22m[39m
+[90m [2m❯[22m TestBedImpl.configureTestingModule node_modules/@angular/core/fesm2022/testing.mjs:[2m1402:19[22m[39m
+[90m [2m❯[22m TestBedImpl.configureTestingModule node_modules/@angular/core/fesm2022/testing.mjs:[2m1273:33[22m[39m
+[36m [2m❯[22m src/app/features/game-simulation/game-simulation.spec.ts:[2m56:19[22m[39m
+    [90m 54| [39m    }[33m;[39m
+    [90m 55| [39m
+    [90m 56| [39m    [35mawait[39m [33mTestBed[39m[33m.[39m[34mconfigureTestingModule[39m({
+    [90m   | [39m                  [31m^[39m
+    [90m 57| [39m      imports[33m:[39m [[33mGameSimulation[39m][33m,[39m
+    [90m 58| [39m      providers[33m:[39m [
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/22]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m6 failed[39m[22m[2m | [22m[1m[32m6 passed[39m[22m[90m (12)[39m
+[2m      Tests [22m [1m[31m22 failed[39m[22m[2m | [22m[1m[32m19 passed[39m[22m[90m (41)[39m
+[2m   Start at [22m 11:07:20
+[2m   Duration [22m 1.04s[2m (transform 634ms, setup 2.09s, import 1.79s, tests 203ms, environment 4.44s)[22m
+
