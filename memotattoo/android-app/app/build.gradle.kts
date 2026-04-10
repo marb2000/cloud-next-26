@@ -95,7 +95,7 @@ android {
 
     sourceSets {
         getByName("main") {
-            kotlin.srcDirs("build/generated/ksp/debug/kotlin")
+            kotlin.srcDir("build/generated/ksp/debug/kotlin")
         }
     }
 }
@@ -110,6 +110,7 @@ dependencies {
 
     implementation(libs.bundles.androidx.core)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.bundles.compose.ui)
     

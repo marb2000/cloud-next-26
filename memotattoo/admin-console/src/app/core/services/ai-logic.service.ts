@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { ai } from '../firebase/firebase';
-import { getGenerativeModel, getTemplateGenerativeModel, ChatSession } from 'firebase/ai';
+import { getTemplateGenerativeModel, TemplateChatSession } from 'firebase/ai';
 import { BucketService } from './bucket.service';
 
 const templateModel = getTemplateGenerativeModel(ai);
@@ -77,65 +77,46 @@ export class AILogicService {
     return this.extractImagePayload(result);
   }
 
-  async startGameMasterChat(concept: any): Promise<ChatSession> {
-    const model = getGenerativeModel(ai, {
-      model: 'gemini-2.5-flash',
-      systemInstruction: `You are the Game Master for a flashcard guessing game. 
-You are testing the user on the term: "${concept.term}".
-The definition of this term is: "${concept.definition}".
-The user is currently looking at an AI-generated image representing this concept.
+  startGameMasterChat(
+    concept: any,
+    onAddPoints: (args: any) => Promise<any>,
+    onNextConcept: (args: any) => Promise<any>,
+    history: any[] = []
+  ): TemplateChatSession {
+    console.log("Starting GM Chat with concept:", concept.term);
 
-Your job:
-1. Start the round by saying: "What am I thinking of?" or a similar inviting question.
-2. Evaluate the user's guesses. 
-3. If they guess exactly the term "${concept.term}", you MUST first explicitly state how many points you are awarding them and why (e.g. "Spot on! That's 10 points for getting it on the first try!"). 
-4. Immediately after your explanation, MUST call the \`add_points\` function with the calculated score (max 10, lower if they needed many hints), followed immediately by the \`next_concept\` function to advance the game.
-5. If their guess is very close or related, act as a helpful tutor and give them a hint (a 'pista') based on the definition to steer them closer. Do not give away the exact word unless time runs out.
-6. Keep your responses short, energetic, and engaging!`,
-      tools: [{
-        functionDeclarations: [
-          {
-            name: "add_points",
-            description: "Award points to the user for guessing correctly.",
-            parameters: {
-              type: "object",
-              properties: { points: { type: "number", description: "Points to award, from 1 to 10." } },
-              required: ["points"]
-            }
-          },
-          {
-            name: "next_concept",
-            description: "Advances the game to the next flashcard concept.",
-            parameters: { type: "object", properties: {} }
-          }
-        ]
-      }]
-    });
+    const vars = {
+      term: concept.term,
+      definition: concept.definition
+    };
 
-    return model.startChat();
-  }
+    const functionTools = [
+      {
+        name: "add_points",
+        parameters: {
+          type: "OBJECT",
+          properties: { points: { type: "NUMBER", description: "Points to award" } },
+          required: ["points"]
+        },
+        functionReference: onAddPoints,
+        callable: onAddPoints
+      },
+      {
+        name: "next_concept",
+        parameters: { type: "OBJECT", properties: {} },
+        functionReference: onNextConcept,
+        callable: onNextConcept
+      }
+    ];
 
-  async sendGameGuess(session: ChatSession, text: string): Promise<{ text: string, functionCalls?: any[] }> {
-    const result = await session.sendMessage(text);
-    return this.processAIResponse(session, result);
-  }
-
-  private async processAIResponse(session: ChatSession, result: any): Promise<{ text: string, functionCalls?: any[] }> {
-    let textResponse = '';
-    try {
-      textResponse = result.response.text();
-    } catch (e) {
-      // It's normal for text() to throw an error if the response only contains function calls
-    }
-
-    const functionCalls = result.response.functionCalls();
-
-    if (functionCalls && functionCalls.length > 0) {
-      // Return both the text and the calls so the component can perform the side effects (score update, advance)
-      return { text: textResponse, functionCalls };
-    }
-
-    return { text: textResponse };
+    return templateModel.startChat({
+      templateId: 'memotattoo-game-master-v1',
+      inputs: vars,
+      templateVariables: vars,
+      history: history,
+      autoFunctions: functionTools,
+      tools: [{ functionDeclarations: functionTools }]
+    } as any);
   }
 
   /**

@@ -7,7 +7,8 @@ import { AnalyticsService } from '../../core/services/analytics.service';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <h2 class="text-3xl font-bold text-slate-100 mb-8 tracking-tight">Business Intelligence Dashboard</h2>
+    <div class="p-8">
+      <h2 class="text-3xl font-bold text-slate-100 mb-8 tracking-tight">Business Intelligence Dashboard</h2>
     
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
       <!-- Total Users -->
@@ -49,6 +50,7 @@ import { AnalyticsService } from '../../core/services/analytics.service';
         </div>
         <div *ngIf="topDecks().length === 0" class="text-slate-400 py-4">No decks available yet.</div>
       </div>
+    </div>
     </div>
   `
 })

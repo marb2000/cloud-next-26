@@ -1,13 +1,57 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const { onDocumentDeleted } = require("firebase-functions/v2/firestore");
+const { onDocumentDeleted, onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const functions = require("firebase-functions/v1");
+const ai = require('firebase-functions/ai');
 const { getStorage } = require("firebase-admin/storage");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
 const admin = require("firebase-admin");
 
 admin.initializeApp();
+
+// Force redeploy comment
+exports.logBeforeCalls = ai.beforeGenerateContent(async (event) => {
+
+  const request = event.data.request;
+
+  let parts = [];
+  if (request.contents) {
+    parts = request.contents.flatMap(c => c.parts ? c.parts.map(p => p.text).filter(Boolean) : []);
+  } else if (request.candidates) {
+    parts = request.candidates.flatMap(c => c.content && c.content.parts ? c.content.parts.map(p => p.text).filter(Boolean) : []);
+  }
+
+  const status = event.auth?.token?.status || 'FREE';
+  const isPro = event.auth?.token?.isPro || false;
+
+  const logData = {
+    action: "Before Generate Content",
+    description: `AI call intercepted. User Status: ${status}. Model: ${event.data.model || 'Unknown'}`,
+    timestamp: new Date().toISOString(),
+    intent: "info",
+    metadata: {
+      user: event.auth?.uid || 'Unknown',
+      status: status,
+      isPro: isPro,
+      parts: parts,
+      template: event.data.template?.id || 'N/A',
+      model: event.data.model || 'Unknown',
+      api: event.data.api || 'Unknown',
+      raw_request: request
+    }
+  };
+
+  try {
+    const db = getFirestore();
+    await db.collection("ActivityLogs").add(logData);
+    console.log("Logged AI call to ActivityLogs.");
+  } catch (e) {
+    console.error("Failed to log AI call:", e);
+  }
+
+  return request;
+});
 
 // Nightly Energy Bolt Refill (Play Plan logic)
 exports.refillEnergyBolts = onSchedule("every day 00:00", async (event) => {
@@ -73,3 +117,22 @@ exports.onUserDeleted = functions.firestore
       }
     }
   });
+
+// Sync User Status to Custom Claims
+exports.syncUserClaims = onDocumentUpdated("Users/{uid}", async (event) => {
+  const newData = event.data.after.data();
+  const oldData = event.data.before.data();
+
+  // Only update if the status has changed
+  if (newData.status !== oldData.status) {
+    const uid = event.params.uid;
+
+    // Set the custom claim
+    await getAuth().setCustomUserClaims(uid, {
+      status: newData.status,
+      isPro: newData.status === 'PRO'
+    });
+
+    console.log(`Updated custom claims for user ${uid} to status: ${newData.status}`);
+  }
+});

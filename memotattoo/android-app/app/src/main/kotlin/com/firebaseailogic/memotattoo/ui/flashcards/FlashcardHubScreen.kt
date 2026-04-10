@@ -163,7 +163,7 @@ fun FlashcardHubScreen(
                 )
             )
 
-            TabRow(
+            SecondaryTabRow(
                     selectedTabIndex = selectedTabIndex,
                     containerColor = MaterialTheme.colorScheme.background,
                     modifier = Modifier.padding(bottom = 16.dp)

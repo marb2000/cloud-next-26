@@ -204,12 +204,29 @@ export class GameSimulation implements OnInit, OnDestroy, AfterViewChecked {
   async initAIChat(concept: any) {
     // Initialize AI Chat for this specific concept
     try {
-      this.state.chatSession = await this.aiLogicService.startGameMasterChat(concept);
+      this.state.chatSession = this.aiLogicService.startGameMasterChat(
+        concept,
+        // onAddPoints (async callback)
+        async (args: any) => {
+          console.log("GM Function Call: add_points", args);
+          const pts = args.points || 10;
+          this.score.update(s => s + pts);
+          this.scoreAnimation.set({ points: pts, visible: true });
+          setTimeout(() => this.scoreAnimation.update(s => ({ ...s, visible: false })), 2500);
+          return { success: true };
+        },
+        // onNextConcept (async callback)
+        async (args: any) => {
+          console.log("GM Function Call: next_concept");
+          setTimeout(() => this.nextRound(), 2500);
+          return { success: true };
+        }
+      );
 
       // Kick off the conversation
       this.isThinking.set(true);
-      const result = await this.aiLogicService.sendGameGuess(this.state.chatSession, "Start the round.");
-      this.chatHistory.update(h => [...h, { role: 'model', text: result.text }]);
+      const result = await this.state.chatSession.sendMessage("Start the round.");
+      this.chatHistory.update(h => [...h, { role: 'model', text: result.response.text() }]);
     } catch (e) {
       console.error("Failed to initialize AI Chat:", e);
       this.chatHistory.update(h => [...h, { role: 'model', text: "Error connecting to the Game Master." }]);
@@ -227,8 +244,34 @@ export class GameSimulation implements OnInit, OnDestroy, AfterViewChecked {
     this.isThinking.set(true);
 
     try {
-      const response = await this.aiLogicService.sendGameGuess(this.state.chatSession, text);
-      await this.handleAIResponse(response);
+      const result = await this.state.chatSession.sendMessage(text);
+      console.log("GM Response received:", result);
+      
+      let responseText = '';
+      try {
+        responseText = result.response.text();
+      } catch (e) {
+        console.warn("No text in response (might be purely function calls)");
+      }
+
+      if (responseText) {
+        this.chatHistory.update(h => [...h, { role: 'model', text: responseText }]);
+        
+        // --- MANUAL FALLBACK --- 
+        // If the model types the calls as text instead of using the Tool API, we process them anyway
+        if (responseText.includes('add_points')) {
+           const match = responseText.match(/add_points\((\d+)\)/);
+           const pts = match ? parseInt(match[1]) : 10;
+           console.log("Manual Fallback: add_points triggered from text", pts);
+           this.score.update(s => s + pts);
+           this.scoreAnimation.set({ points: pts, visible: true });
+           setTimeout(() => this.scoreAnimation.update(s => ({ ...s, visible: false })), 2500);
+        }
+        if (responseText.includes('next_concept')) {
+           console.log("Manual Fallback: next_concept triggered from text");
+           setTimeout(() => this.nextRound(), 2500);
+        }
+      }
     } catch (e) {
       console.error("Chat error:", e);
       this.chatHistory.update(h => [...h, { role: 'model', text: "Whoops, I lost my train of thought. Try again!" }]);
@@ -236,37 +279,4 @@ export class GameSimulation implements OnInit, OnDestroy, AfterViewChecked {
       this.isThinking.set(false);
     }
   }
-
-  private async handleAIResponse(response: { text: string, functionCalls?: any[] }) {
-    if (response.text) {
-      this.chatHistory.update(h => [...h, { role: 'model', text: response.text }]);
-    }
-
-    if (response.functionCalls && response.functionCalls.length > 0) {
-      const results = [];
-      let shouldAdvance = false;
-
-      for (const call of response.functionCalls) {
-        if (call.name === 'add_points') {
-          const pts = (call.args as any).points || 10;
-          this.score.update(s => s + pts);
-          this.scoreAnimation.set({ points: pts, visible: true });
-          setTimeout(() => this.scoreAnimation.update(s => ({ ...s, visible: false })), 2500);
-          results.push({ functionResponse: { name: call.name, response: { success: true } } });
-        } else if (call.name === 'next_concept') {
-          results.push({ functionResponse: { name: call.name, response: { success: true } } });
-          shouldAdvance = true;
-        }
-      }
-
-      if (shouldAdvance) {
-        setTimeout(() => this.nextRound(), 2500);
-      } else if (this.state.chatSession) {
-        // Send back function results and handle recursive follow-up
-        const nextResult = await this.aiLogicService.sendGameGuess(this.state.chatSession, results as any);
-        await this.handleAIResponse(nextResult);
-      }
-    }
-  }
-
 }

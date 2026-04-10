@@ -9,7 +9,8 @@ import { Subscription } from 'rxjs';
   standalone: true,
   imports: [CommonModule, ConfirmDialogComponent],
   template: `
-    <div class="flex items-center justify-between mb-8">
+    <div class="p-8">
+      <div class="flex items-center justify-between mb-8">
       <h2 class="text-3xl font-bold text-slate-100 tracking-tight">Activity Logs</h2>
       
       <div class="flex items-center gap-4">
@@ -58,8 +59,9 @@ import { Subscription } from 'rxjs';
       <div class="grid grid-cols-12 gap-4 p-4 border-b border-slate-700/80 bg-slate-900/50 text-xs font-bold text-slate-400 uppercase tracking-wider sticky top-0">
         <div class="col-span-2">Timestamp</div>
         <div class="col-span-1 text-center">Intent</div>
-        <div class="col-span-3">Action</div>
-        <div class="col-span-6">Description / Metadata</div>
+        <div class="col-span-2">Action</div>
+        <div class="col-span-5">Description</div>
+        <div class="col-span-2 text-right">Actions</div>
       </div>
       
       <!-- Log Stream body -->
@@ -95,17 +97,29 @@ import { Subscription } from 'rxjs';
                   </div>
                   
                   <!-- Action -->
-                  <div class="col-span-3 text-sm font-semibold text-slate-200">
+                  <div class="col-span-2 text-sm font-semibold text-slate-200">
                      {{ log.action }}
                   </div>
                   
-                  <!-- Description & Metadata -->
-                  <div class="col-span-6 flex flex-col gap-1">
+                  <!-- Description -->
+                  <div class="col-span-5 flex flex-col gap-1">
                      <span class="text-sm text-slate-400 group-hover:text-slate-300 transition-colors">
                         {{ log.description }}
                      </span>
-                     @if (log.metadata) {
+                     @if (log.metadata && log.action !== 'Before Generate Content') {
                         <pre class="mt-2 text-[10px] sm:text-xs text-teal-400/80 bg-slate-950 p-2 rounded-lg border border-slate-800 overflow-x-auto font-mono max-h-32 overflow-y-auto w-full">{{ log.metadata | json }}</pre>
+                     }
+                  </div>
+                  
+                  <!-- Actions -->
+                  <div class="col-span-2 flex justify-end items-center h-full">
+                     @if (log.action === 'Before Generate Content' && log.metadata) {
+                        <button 
+                          (click)="selectedLogForDetails.set(log)"
+                          class="px-3 py-1.5 bg-teal-500/10 hover:bg-teal-500/20 text-teal-500 rounded-lg text-xs font-bold border border-teal-500/30 transition-colors"
+                        >
+                          View Details
+                        </button>
                      }
                   </div>
                 </div>
@@ -125,10 +139,86 @@ import { Subscription } from 'rxjs';
       (confirm)="dropAllLogs()"
       (cancel)="showDropConfirm.set(false)"
     ></app-confirm-dialog>
+
+    <!-- Beautiful Message Box for AI Details -->
+    @if (selectedLogForDetails()) {
+      <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+          <!-- Header -->
+          <div class="p-6 border-b border-slate-700 flex items-center justify-between bg-slate-900/50">
+            <div class="flex items-center gap-3">
+              <span class="w-3 h-3 rounded-full bg-teal-500 shadow-[0_0_10px_rgba(20,184,166,0.5)]"></span>
+              <h3 class="text-xl font-bold text-white">AI Call Details</h3>
+            </div>
+            <button (click)="selectedLogForDetails.set(null)" class="text-slate-400 hover:text-white transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+          
+          <!-- Body -->
+          <div class="p-6 overflow-y-auto space-y-6 flex-grow">
+            <!-- User & Info Grid -->
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                <span class="text-slate-400 text-xs uppercase font-bold">User UID</span>
+                <p class="text-white font-mono mt-1">{{ selectedLogForDetails()?.metadata?.user }}</p>
+              </div>
+              <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                <span class="text-slate-400 text-xs uppercase font-bold">Model</span>
+                <p class="text-white mt-1">{{ selectedLogForDetails()?.metadata?.model }}</p>
+              </div>
+              <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                <span class="text-slate-400 text-xs uppercase font-bold">API</span>
+                <p class="text-white mt-1">{{ selectedLogForDetails()?.metadata?.api }}</p>
+              </div>
+              <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                <span class="text-slate-400 text-xs uppercase font-bold">Template</span>
+                <p class="text-white mt-1">{{ selectedLogForDetails()?.metadata?.template }}</p>
+              </div>
+            </div>
+            
+            <!-- Parts Text -->
+            <div>
+              <span class="text-slate-400 text-xs uppercase font-bold">Prompt Parts / Content</span>
+              <div class="mt-2 space-y-2">
+                @for (part of selectedLogForDetails()?.metadata?.parts; track $index) {
+                  <div class="bg-slate-900 p-4 rounded-lg border border-slate-700 text-sm text-slate-200 font-mono whitespace-pre-wrap">
+                    {{ part }}
+                  </div>
+                } @empty {
+                  <p class="text-slate-500 text-sm italic">No text parts found.</p>
+                }
+              </div>
+            </div>
+            
+            <!-- Raw Request Accordion -->
+            <details class="group">
+              <summary class="text-slate-400 text-xs uppercase font-bold cursor-pointer hover:text-slate-200 transition-colors flex items-center justify-between">
+                <span>Raw Request Payload</span>
+                <svg class="w-4 h-4 transform transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+              </summary>
+              <pre class="mt-2 text-xs text-teal-400/80 bg-slate-950 p-4 rounded-lg border border-slate-800 overflow-x-auto font-mono max-h-48 overflow-y-auto">{{ selectedLogForDetails()?.metadata?.raw_request | json }}</pre>
+            </details>
+          </div>
+          
+          <!-- Footer -->
+          <div class="p-4 border-t border-slate-700 flex justify-end bg-slate-900/50">
+            <button 
+              (click)="selectedLogForDetails.set(null)"
+              class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-bold transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+    </div>
   `
 })
 export class LogsComponent implements OnInit, OnDestroy {
   logs = signal<(ActivityLog & { id: string })[]>([]);
+  selectedLogForDetails = signal<ActivityLog | null>(null);
   isLoading = signal<boolean>(true);
   showDropConfirm = signal<boolean>(false);
 

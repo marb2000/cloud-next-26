@@ -8,7 +8,7 @@
     "set-admin": "node setAdminClaim.js"
   },
   "dependencies": {
-    "firebase": "^12.9.0",
-    "firebase-admin": "^12.7.0"
+    "firebase": "^12.12.0",
+    "firebase-admin": "^13.8.0"
   }
 }

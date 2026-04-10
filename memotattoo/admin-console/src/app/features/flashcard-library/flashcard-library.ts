@@ -11,7 +11,9 @@ import { UserManagementService, FirebaseUser } from '../../core/services/user-ma
   standalone: true,
   imports: [CommonModule, ConfirmDialogComponent],
   template: `
-    <div class="flex items-center justify-between mb-8">
+    <div class="p-8">
+      <h1 class="text-3xl font-bold text-white mb-6">Deck Library</h1>
+      <div class="flex items-center justify-between mb-8">
       <div class="flex items-center gap-4">
         <div class="relative">
           <input type="text" 
@@ -205,6 +207,7 @@ import { UserManagementService, FirebaseUser } from '../../core/services/user-ma
       (confirm)="handleConfirmAction()"
       (cancel)="pendingAction.set(null)"
     ></app-confirm-dialog>
+    </div>
   `
 })
 export class FlashcardLibrary implements OnInit {

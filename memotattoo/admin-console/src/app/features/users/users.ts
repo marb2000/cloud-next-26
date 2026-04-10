@@ -11,7 +11,8 @@ import { Subscription } from 'rxjs';
   standalone: true,
   imports: [CommonModule, FormsModule, ConfirmDialogComponent],
   template: `
-    <div class="flex items-center justify-between mb-8">
+    <div class="p-8">
+      <div class="flex items-center justify-between mb-8">
       <h2 class="text-3xl font-bold text-slate-100 tracking-tight">User Management</h2>
       <div class="flex gap-2">
         <span class="px-3 py-1 bg-slate-800 rounded-lg text-sm font-semibold text-slate-400 border border-slate-700">Total Users: {{ users().length }}</span>
@@ -116,6 +117,7 @@ import { Subscription } from 'rxjs';
       (confirm)="executePendingAction()"
       (cancel)="cancelAction()"
     ></app-confirm-dialog>
+    </div>
   `
 })
 export class UsersComponent implements OnInit, OnDestroy {
