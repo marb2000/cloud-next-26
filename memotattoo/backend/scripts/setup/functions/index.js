@@ -10,7 +10,6 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 
-// Force redeploy comment
 exports.logBeforeCalls = ai.beforeGenerateContent(async (event) => {
 
   const request = event.data.request;
@@ -23,7 +22,6 @@ exports.logBeforeCalls = ai.beforeGenerateContent(async (event) => {
   }
 
   const status = event.auth?.token?.status || 'FREE';
-  const isPro = event.auth?.token?.isPro || false;
 
   const logData = {
     action: "Before Generate Content",
@@ -33,7 +31,6 @@ exports.logBeforeCalls = ai.beforeGenerateContent(async (event) => {
     metadata: {
       user: event.auth?.uid || 'Unknown',
       status: status,
-      isPro: isPro,
       parts: parts,
       template: event.data.template?.id || 'N/A',
       model: event.data.model || 'Unknown',
@@ -42,12 +39,23 @@ exports.logBeforeCalls = ai.beforeGenerateContent(async (event) => {
     }
   };
 
+  const db = getFirestore();
+
   try {
-    const db = getFirestore();
     await db.collection("ActivityLogs").add(logData);
     console.log("Logged AI call to ActivityLogs.");
   } catch (e) {
     console.error("Failed to log AI call:", e);
+  }
+
+  // Check energy bolts for FREE users AFTER logging
+  const uid = event.auth?.uid;
+  if (uid) {
+    const userDoc = await db.collection("Users").doc(uid).get();
+    const userData = userDoc.data();
+    if (userData && userData.status !== 'PRO' && (userData.energy_bolts || 0) <= 0) {
+      throw new HttpsError('failed-precondition', 'Insufficient energy bolts');
+    }
   }
 
   return request;
@@ -62,7 +70,7 @@ exports.refillEnergyBolts = onSchedule("every day 00:00", async (event) => {
   usersSnapshot.forEach((doc) => {
     // Refill free users up to 3 bolts
     const data = doc.data();
-    if (!data.isPro && data.energy_bolts < 3) {
+    if (data.status !== 'PRO' && data.energy_bolts < 3) {
       batch.update(doc.ref, { energy_bolts: 3 });
     }
   });
@@ -129,8 +137,7 @@ exports.syncUserClaims = onDocumentUpdated("Users/{uid}", async (event) => {
 
     // Set the custom claim
     await getAuth().setCustomUserClaims(uid, {
-      status: newData.status,
-      isPro: newData.status === 'PRO'
+      status: newData.status
     });
 
     console.log(`Updated custom claims for user ${uid} to status: ${newData.status}`);

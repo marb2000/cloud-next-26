@@ -16,7 +16,7 @@ export class AnalyticsService {
 
     usersSnap.forEach(doc => {
       const data = doc.data();
-      if (data['isPro'] === true) proCount++;
+      if (data['status'] === 'PRO') proCount++;
       if (data['imagesGeneratedThisMonth']) {
         imgCount += (typeof data['imagesGeneratedThisMonth'] === 'number' ? data['imagesGeneratedThisMonth'] : 0);
       }

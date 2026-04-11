@@ -8,7 +8,7 @@ export interface FirebaseUser {
   email: string;
   energy_bolts: number;
   isBanned: boolean;
-  isPro: boolean;
+  status: string;
   interests: string[];
 }
 
@@ -34,7 +34,7 @@ export class UserManagementService {
             email: d['email'] || '',
             energy_bolts: d['energy_bolts'] || 0,
             isBanned: d['isBanned'] || false,
-            isPro: d['isPro'] || false,
+            status: d['status'] || 'FREE',
             interests: d['interests'] || []
           });
         });

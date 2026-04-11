@@ -410,7 +410,11 @@ export class FlashcardStudio implements OnInit {
       this.showToast("Topic breakdown generated successfully!", 'success');
     } catch (e: any) {
       console.error(e);
-      this.showToast("Brainstorm Failed: " + e.message, 'error');
+      if (e.message && e.message.includes("Insufficient energy bolts")) {
+        this.showToast("You don't have enough energy bolts. Please buy more to continue or upgrade to PRO.", 'error');
+      } else {
+        this.showToast("Brainstorm Failed: " + e.message, 'error');
+      }
       this.logger.error('Brainstorm Failed', 'AI Generation request failed', e);
     } finally {
       this.isGeneratingContent.set(false);
@@ -457,7 +461,11 @@ export class FlashcardStudio implements OnInit {
       }
     } catch (e: any) {
       console.error(e);
-      this.showToast("Brainstorm More Failed: " + e.message, 'error');
+      if (e.message && e.message.includes("Insufficient energy bolts")) {
+        this.showToast("You don't have enough energy bolts. Please buy more to continue or upgrade to PRO.", 'error');
+      } else {
+        this.showToast("Brainstorm More Failed: " + e.message, 'error');
+      }
     } finally {
       this.isGeneratingContent.set(false);
     }
@@ -617,7 +625,11 @@ export class FlashcardStudio implements OnInit {
     } catch (e: any) {
       console.error("AI Image Gen Error:", e);
       this.logger.error('Image Generation Failed', `Failed while generating or saving image for ${concept.term}`, e);
-      this.showToast("Failed to generate Image for " + concept.term + ": " + e.message, 'error');
+      if (e.message && e.message.includes("Insufficient energy bolts")) {
+        this.showToast("You don't have enough energy bolts. Please buy more to continue or upgrade to PRO.", 'error');
+      } else {
+        this.showToast("Failed to generate Image for " + concept.term + ": " + e.message, 'error');
+      }
     } finally {
       this.conceptDrafts.update(drafts => {
         const newDrafts = [...drafts];
@@ -674,7 +686,11 @@ export class FlashcardStudio implements OnInit {
     } catch (e: any) {
       console.error("AI Image Refine Error:", e);
       this.logger.error('Image Refinement Failed', `Failed while refining image for ${concept.term}`, e);
-      this.showToast("Failed to refine Image for " + concept.term + ": " + e.message, 'error');
+      if (e.message && e.message.includes("Insufficient energy bolts")) {
+        this.showToast("You don't have enough energy bolts. Please buy more to continue or upgrade to PRO.", 'error');
+      } else {
+        this.showToast("Failed to refine Image for " + concept.term + ": " + e.message, 'error');
+      }
     } finally {
       this.conceptDrafts.update(drafts => {
         const newDrafts = [...drafts];

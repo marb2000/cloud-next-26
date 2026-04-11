@@ -37,9 +37,9 @@ describe('UserManagementService', () => {
 
   it('should map and sort users correctly (banned at bottom)', async () => {
     const mockUsers = [
-      { id: '1', data: () => ({ email: 'a@test.com', energy_bolts: 100, isBanned: false, isPro: true, interests: [] }) },
-      { id: '2', data: () => ({ email: 'b@test.com', energy_bolts: 50, isBanned: true, isPro: false, interests: [] }) },
-      { id: '3', data: () => ({ email: 'c@test.com', energy_bolts: 200, isBanned: false, isPro: false, interests: [] }) },
+      { id: '1', data: () => ({ email: 'a@test.com', energy_bolts: 100, isBanned: false, status: 'PRO', interests: [] }) },
+      { id: '2', data: () => ({ email: 'b@test.com', energy_bolts: 50, isBanned: true, status: 'FREE', interests: [] }) },
+      { id: '3', data: () => ({ email: 'c@test.com', energy_bolts: 200, isBanned: false, status: 'FREE', interests: [] }) },
     ];
 
     (onSnapshot as any).mockImplementation((q: any, cb: any) => {

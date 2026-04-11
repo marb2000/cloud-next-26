@@ -62,7 +62,7 @@ import { Subscription } from 'rxjs';
                   <!-- Status Badges -->
                   <td class="p-4 text-center space-y-2">
                     <div class="flex justify-center gap-2 flex-wrap">
-                       @if (user.isPro) {
+                       @if (user.status === 'PRO') {
                          <span class="px-2 py-1 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded text-[10px] font-bold uppercase tracking-wider">PRO</span>
                        } @else {
                          <span class="px-2 py-1 bg-slate-700/50 text-slate-400 rounded text-[10px] font-bold uppercase tracking-wider">FREE</span>

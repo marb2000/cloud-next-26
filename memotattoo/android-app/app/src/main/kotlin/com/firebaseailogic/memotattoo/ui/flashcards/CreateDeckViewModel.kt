@@ -195,7 +195,11 @@ class CreateDeckViewModel(
                     )
                 }
             } catch (e: Exception) {
-                _errorMessage.value = "Failed to brainstorm: ${e.message}"
+                if (e.message?.contains("Insufficient energy bolts") == true || e.message?.contains("Insufficient bolts") == true) {
+                    _errorMessage.value = "You don't have enough energy bolts. Please buy more to continue or upgrade to PRO."
+                } else {
+                    _errorMessage.value = "Failed to brainstorm: ${e.message}"
+                }
             } finally {
                 _isLoading.value = false
             }
@@ -265,6 +269,11 @@ class CreateDeckViewModel(
                 }
             } catch (e: Exception) {
                 android.util.Log.e("CreateDeckViewModel", "Image generation failed", e)
+                if (e.message?.contains("Insufficient energy bolts") == true || e.message?.contains("Insufficient bolts") == true) {
+                    _errorMessage.value = "You don't have enough energy bolts. Please buy more to continue or upgrade to PRO."
+                } else {
+                    _errorMessage.value = "Image generation failed: ${e.message}"
+                }
                 _uiState.update {
                     val updated = it.concepts.toMutableList()
                     updated[index] = updated[index].copy(isGeneratingImage = false)

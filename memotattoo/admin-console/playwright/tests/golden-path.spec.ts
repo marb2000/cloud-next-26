@@ -63,6 +63,32 @@ test.describe('Admin Console Golden Path - All User Journeys', () => {
     await expect(page).toHaveURL(/.*game/);
   });
 
+  test('Journey 9: Insufficient Energy Bolts Error Handling', async ({ page }) => {
+    await page.goto('/flashcard-studio');
+    
+    await page.route('**/models/gemini-*:generateContent', async route => {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: {
+            message: "Insufficient energy bolts",
+            status: "FAILED_PRECONDITION"
+          }
+        })
+      });
+    });
+
+    const topicInput = page.locator('input[formControlName="topic"]').first();
+    await topicInput.fill('Test Topic');
+    
+    const brainstormButton = page.locator('button:has-text("Brainstorm"), button:has-text("Generate")').first();
+    await brainstormButton.click();
+    
+    const toast = page.locator('.toast-error, .toast:has-text("You don\'t have enough energy bolts")').first();
+    await expect(toast).toBeVisible();
+  });
+
   test('Journey 8: Unauthorized / Fallback Route Redirect', async ({ page }) => {
     // Navigating to a completely random non-existent route
     await page.goto('/this-route-does-not-exist');

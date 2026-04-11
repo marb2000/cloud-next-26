@@ -200,6 +200,25 @@ fun MockBillingScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        Button(
+            onClick = {
+                coroutineScope.launch {
+                    FirebaseManager.auth.currentUser?.uid?.let { uid ->
+                        FirebaseManager.firestore
+                            .collection("Users")
+                            .document(uid)
+                            .update("energy_bolts", 0)
+                            .await()
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+            shape = RoundedCornerShape(12.dp)
+        ) { Text("Set Bolts to 0 (Debug)", style = MaterialTheme.typography.labelMedium) }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+
         if (showSubscribeDialog) {
             AlertDialog(
                 onDismissRequest = { if (!isProcessing) showSubscribeDialog = false },
