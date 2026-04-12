@@ -91,48 +91,75 @@ import { UserManagementService, FirebaseUser } from '../../core/services/user-ma
               <p class="text-[10px] text-slate-500 mb-6 font-mono uppercase tracking-wider">{{ deck.publishedAt | date:'medium' }}</p>
               
               <div class="mt-auto space-y-4">
-                <!-- Status Switcher Actions -->
-                @if (deck.status !== 'locked') {
-                  <div class="flex bg-slate-900 rounded-lg p-1 border border-slate-700 mb-4">
-                    <button class="flex-1 py-1.5 text-xs font-semibold rounded transition-colors"
-                            [class.bg-yellow-500]="deck.status === 'draft'" [class.text-white]="deck.status === 'draft'" [class.text-slate-400]="deck.status !== 'draft'"
-                            (click)="executeStatusUpdate(deck.id, 'draft')">Draft</button>
-                    <button class="flex-1 py-1.5 text-xs font-semibold rounded transition-colors"
-                            [class.bg-emerald-500]="deck.status === 'published'" [class.text-white]="deck.status === 'published'" [class.text-slate-400]="deck.status !== 'published'"
-                            (click)="executeStatusUpdate(deck.id, 'published')">Pub</button>
-                    <button class="flex-1 py-1.5 text-xs font-semibold rounded transition-colors"
-                            [class.bg-indigo-600]="deck.status === 'private'" [class.text-white]="deck.status === 'private'" [class.text-slate-400]="deck.status !== 'private'"
-                            (click)="executeStatusUpdate(deck.id, 'private')">Private</button>
-                    <button class="flex-1 py-1.5 text-xs font-semibold rounded transition-colors text-red-400 hover:text-red-300"
-                            (click)="executeStatusUpdate(deck.id, 'locked')">Lock</button>
-                  </div>
-                } @else {
-                  <div class="mb-4 text-center">
-                    <button class="w-full py-2 bg-red-500/10 text-red-500 rounded-lg text-sm font-semibold border border-red-500/20 hover:bg-red-500/20"
-                            (click)="promptUnlockDeck(deck.id)">
-                      Unlock Deck
-                    </button>
-                  </div>
-                }
-                
-                <!-- Destructive / Edit Actions -->
-                <div class="flex gap-2">
-                  <button class="flex-1 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 font-bold text-sm rounded-lg transition-colors border border-emerald-500/20 disabled:opacity-50"
+                <!-- Primary & Secondary Actions -->
+                <div class="flex gap-3 items-center">
+                  <button class="flex-grow py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-lg transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
                           [disabled]="deck.status === 'locked' || (deck.previewImages.length === 0 && (!deck.items || deck.items.length === 0))" (click)="playDeck(deck)">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z"></path>
+                    </svg>
                     Play
                   </button>
-                  <button class="flex-1 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 font-bold text-sm rounded-lg transition-colors border border-blue-500/20 disabled:opacity-50"
+                  <button class="flex-grow py-2.5 bg-slate-700 hover:bg-slate-600 text-white font-bold text-sm rounded-lg transition-colors border border-slate-600 disabled:opacity-50 flex items-center justify-center gap-2"
                           [disabled]="deck.status === 'locked'" (click)="editDeck(deck)">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
                     Edit
                   </button>
-                  <button class="flex-1 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 font-bold text-sm rounded-lg transition-colors border border-purple-500/20 disabled:opacity-50"
-                          [disabled]="deck.status === 'locked'" (click)="openQuickEdit(deck)">
-                    JSON
-                  </button>
-                  <button class="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 font-bold text-sm rounded-lg transition-colors border border-red-500/20 disabled:opacity-50"
-                          [disabled]="deck.status === 'locked'" (click)="promptDeleteDeck(deck.id)">
-                    Delete
-                  </button>
+                  
+                  <!-- More Actions Dropdown -->
+                  <div class="relative group">
+                    <button class="p-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors border border-slate-600">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
+                      </svg>
+                    </button>
+                    
+                    <!-- Dropdown Menu -->
+                    <div class="absolute right-0 bottom-full mb-2 w-48 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                      <div class="py-1">
+                        <button (click)="openQuickEdit(deck)" class="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white flex items-center gap-2">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4m-4-4L6 20"></path></svg>
+                          View JSON
+                        </button>
+                        
+                        <div class="border-t border-slate-700 my-1"></div>
+                        
+                        <!-- Status Actions -->
+                        @if (deck.status !== 'locked') {
+                          <button (click)="executeStatusUpdate(deck.id, 'draft')" class="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full" [class.bg-emerald-400]="deck.status === 'draft'" [class.bg-slate-600]="deck.status !== 'draft'"></div>
+                            Set as Draft
+                          </button>
+                          <button (click)="executeStatusUpdate(deck.id, 'published')" class="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full" [class.bg-emerald-400]="deck.status === 'published'" [class.bg-slate-600]="deck.status !== 'published'"></div>
+                            Set as Published
+                          </button>
+                          <button (click)="executeStatusUpdate(deck.id, 'private')" class="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full" [class.bg-emerald-400]="deck.status === 'private'" [class.bg-slate-600]="deck.status !== 'private'"></div>
+                            Set as Private
+                          </button>
+                          <button (click)="executeStatusUpdate(deck.id, 'locked')" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-800 hover:text-red-300 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            Lock Deck
+                          </button>
+                        } @else {
+                          <button (click)="promptUnlockDeck(deck.id)" class="w-full text-left px-4 py-2 text-sm text-emerald-400 hover:bg-slate-800 hover:text-emerald-300 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0v4m0 0a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6a2 2 0 012-2m10 0V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            Unlock Deck
+                          </button>
+                        }
+                        
+                        <div class="border-t border-slate-700 my-1"></div>
+                        
+                        <button (click)="promptDeleteDeck(deck.id)" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-800 hover:text-red-300 flex items-center gap-2">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                          Delete Deck
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
