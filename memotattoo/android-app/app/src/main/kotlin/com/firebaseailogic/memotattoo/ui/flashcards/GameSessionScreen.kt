@@ -23,6 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import coil3.compose.AsyncImage
 import com.firebaseailogic.memotattoo.ui.components.AutoResizeText
 import com.firebaseailogic.memotattoo.ui.components.FullScreenImageViewer
@@ -102,7 +105,7 @@ fun GameSessionScreen(
         return
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }) {
         Column(
             modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
         ) {
@@ -203,18 +206,19 @@ fun GameSessionScreen(
                     modifier = Modifier.weight(1f),
                     placeholder = { Text("Your guess...") },
                     singleLine = true,
-                    enabled = !uiState.isSubmitting,
+                    enabled = !uiState.isSubmitting && uiState.timeUpAnimTrigger == null,
                     shape = RoundedCornerShape(24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
+                    modifier = Modifier.testTag("send_button"),
                     onClick = {
                         if (inputText.isBlank()) return@IconButton
                         val userMsg = inputText
                         inputText = ""
                         viewModel.submitGuess(userMsg)
                     },
-                    enabled = !uiState.isSubmitting && inputText.isNotBlank(),
+                    enabled = !uiState.isSubmitting && inputText.isNotBlank() && uiState.timeUpAnimTrigger == null,
                     colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Icon(

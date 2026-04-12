@@ -50,7 +50,7 @@ describe('AILogicService', () => {
 
       const result = await service.brainstormTopic('math', 5);
 
-      expect(templateModel.generateContent).toHaveBeenCalledWith('memotattoo-generatate-topic-v1', {
+      expect(templateModel.generateContent).toHaveBeenCalledWith('memotattoo-generate-topic-v1', {
         topic: 'math',
         numConcepts: 5
       });

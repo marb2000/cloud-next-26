@@ -107,7 +107,27 @@ async function syncPrompts() {
       await sleep(6000);
     }
 
-    console.log('\n✨ Sync complete. (Note: Deletions were skipped as requested)');
+    // Specific deletion of the old template with typo as requested by user
+    const oldTemplateId = 'memotattoo-generatate-topic-v1';
+    if (remoteIds.includes(oldTemplateId)) {
+      console.log(`\n🗑️ Deleting old template [${oldTemplateId}]...`);
+      const url = `${BASE_URL}/${oldTemplateId}`;
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'X-Goog-User-Project': PROJECT_ID
+        }
+      });
+      if (response.ok) {
+        console.log(`✅ [${oldTemplateId}] Deleted successfully.`);
+      } else {
+        const error = await response.text();
+        console.error(`❌ [${oldTemplateId}] Failed to delete: ${error}`);
+      }
+    }
+
+    console.log('\n✨ Sync complete.');
 
   } catch (error) {
     console.error('💥 Fatal error during sync:', error);

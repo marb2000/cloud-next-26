@@ -2,15 +2,18 @@ appId: com.firebaseailogic.memotattoo
 ---
 - launchApp
 - assertVisible: "Flashcard Hub"
-- tapOn: "Store"
+- tapOn:
+    point: "1094, 372"
 - tapOn: "Set Bolts to 0 (Debug)"
 - back
 - assertVisible: "Flashcard Hub"
+- runScript: sleep.js
 - tapOn: "+"
 - assertVisible: "Create Flashcard Deck"
 - inputText: "Test Topic"
 - hideKeyboard
 - waitForAnimationToEnd
+- runScript: sleep.js
 - tapOn:
-    point: "789, 2232"
+    id: "brainstorm_button"
 - assertVisible: "You don't have enough energy bolts. Please buy more to continue or upgrade to PRO."

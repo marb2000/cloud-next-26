@@ -20,7 +20,7 @@ MemoTattoo utilizes a  AI orchestration layer powered by **Firebase AI Logic**, 
 
 ### A. The "Flashcard Studio" (Content Creation)
 Creators (and Admins) use a 5-step wizard to build "Personalized Curricula" using **Firebase AI Logic Prompt Templates**:
-1.  **Topic Breakdown:** Translates a high-level subject (e.g., "Photography Basics") into discrete concepts using `memotattoo-generatate-topic-v1`.
+1.  **Topic Breakdown:** Translates a high-level subject (e.g., "Photography Basics") into discrete concepts using `memotattoo-generate-topic-v1`.
 2.  **Concept Refinement:** Visual editing/brainstorming of terms and definitions.
 3.  **Global Art Direction:** Users provide text prompts and reference images to define the aesthetic the AI should follow (e.g., "Cyberpunk", "Vintage Oil Painting").
 4.  **Multimodal Image Generation:** High-fidelity, isolated images are generated for *each* concept via `memotattoo-generate-concept-image-v1` (Imagen 3.0 via AI Logic). It supports **iterative refinement** of specific images.

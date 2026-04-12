@@ -14,7 +14,7 @@ export class AILogicService {
   constructor() { }
 
   async brainstormTopic(topic: string, numConcepts: number): Promise<any> {
-    const result = await templateModel.generateContent('memotattoo-generatate-topic-v1', {
+    const result = await templateModel.generateContent('memotattoo-generate-topic-v1', {
       topic,
       numConcepts
     });
