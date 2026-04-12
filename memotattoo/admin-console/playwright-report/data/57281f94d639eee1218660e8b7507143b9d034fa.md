@@ -77,127 +77,84 @@ Call log:
       - generic [ref=e53]:
         - generic [ref=e54]:
           - heading "Flashcard Deck Studio" [level=1] [ref=e55]
-          - paragraph [ref=e56]: Generate curriculum, topic concepts, and detailed illustrations using Gemini AI.
+          - paragraph [ref=e56]: Brainstorm topics, generate study flashcards, and detailed illustrations using Gemini.
         - button "Trash Deck Draft" [ref=e57] [cursor=pointer]
-      - generic [ref=e58]:
-        - generic [ref=e59]:
-          - generic [ref=e60]:
-            - heading "1. Break Down Topic" [level=3] [ref=e61]
-            - generic [ref=e62]:
-              - generic [ref=e63]:
-                - generic [ref=e64]: Subject
-                - textbox "e.g., Newton's Laws" [ref=e65]: Test Topic
-              - generic [ref=e66]:
-                - generic [ref=e67]: Items
-                - spinbutton [ref=e68]: "5"
-            - button "Brainstorm Content" [ref=e69] [cursor=pointer]
-          - generic [ref=e70]:
-            - generic [ref=e71]:
-              - heading "2. Edit Content Payload" [level=3] [ref=e72]
-              - generic [ref=e73]:
-                - button "Visual" [ref=e74] [cursor=pointer]
-                - button "JSON" [ref=e75] [cursor=pointer]
-            - generic [ref=e76]:
-              - generic [ref=e77]:
-                - generic [ref=e78]: Deck Title
-                - textbox [ref=e79]: Test Topic Fundamentals
-              - generic [ref=e80]:
-                - generic [ref=e81]:
-                  - generic [ref=e82]:
-                    - generic [ref=e83]: Concept 1
-                    - button "Remove Concept" [ref=e84] [cursor=pointer]:
-                      - img [ref=e85]
-                  - textbox "Term" [ref=e87]: Core Hypothesis
-                  - textbox "Definition" [ref=e88]: The foundational assumption that sets the stage for the entire test topic.
-                - generic [ref=e89]:
-                  - generic [ref=e90]:
-                    - generic [ref=e91]: Concept 2
-                    - button "Remove Concept" [ref=e92] [cursor=pointer]:
-                      - img [ref=e93]
-                  - textbox "Term" [ref=e95]: Variable Analysis
-                  - textbox "Definition" [ref=e96]: Identifying the specific elements that change or remain constant during the evaluation.
-                - generic [ref=e97]:
-                  - generic [ref=e98]:
-                    - generic [ref=e99]: Concept 3
-                    - button "Remove Concept" [ref=e100] [cursor=pointer]:
-                      - img [ref=e101]
-                  - textbox "Term" [ref=e103]: Data Collection
-                  - textbox "Definition" [ref=e104]: The systematic process of gathering evidence to support or refute the core hypothesis.
-                - generic [ref=e105]:
-                  - generic [ref=e106]:
-                    - generic [ref=e107]: Concept 4
-                    - button "Remove Concept" [ref=e108] [cursor=pointer]:
-                      - img [ref=e109]
-                  - textbox "Term" [ref=e111]: Pattern Recognition
-                  - textbox "Definition" [ref=e112]: Identifying recurring trends or anomalies within the collected data set.
-                - generic [ref=e113]:
-                  - generic [ref=e114]:
-                    - generic [ref=e115]: Concept 5
-                    - button "Remove Concept" [ref=e116] [cursor=pointer]:
-                      - img [ref=e117]
-                  - textbox "Term" [ref=e119]: Final Synthesis
-                  - textbox "Definition" [ref=e120]: Drawing a logical conclusion based on the evidence and patterns observed.
-              - button "Brainstorm 3 More Items" [ref=e122] [cursor=pointer]:
-                - img [ref=e123]
-                - text: Brainstorm 3 More Items
-            - generic [ref=e125]:
-              - generic [ref=e126]: Global Art Direction (Optional)
-              - generic [ref=e127]:
-                - textbox "e.g. 90s Anime Style, Vector Art, Pastel Colors..." [ref=e128]
-                - generic [ref=e131] [cursor=pointer]:
-                  - img [ref=e132]
-                  - text: Upload Reference Image
-        - generic [ref=e134]:
-          - generic [ref=e135]:
-            - heading "3. Per-Concept Image Generation" [level=3] [ref=e136]
-            - button "Generate Missing Images" [ref=e137] [cursor=pointer]
-          - generic [ref=e138]:
-            - generic [ref=e139]:
-              - heading "Core Hypothesis" [level=4] [ref=e140]
-              - paragraph [ref=e141]: The foundational assumption that sets the stage for the entire test topic.
-              - generic [ref=e143]: No image generated yet.
-              - generic [ref=e144]:
-                - button "Generate Concept Image" [ref=e145] [cursor=pointer]
-                - generic "Upload Custom Image" [ref=e146] [cursor=pointer]:
-                  - img [ref=e147]
-            - generic [ref=e149]:
-              - heading "Variable Analysis" [level=4] [ref=e150]
-              - paragraph [ref=e151]: Identifying the specific elements that change or remain constant during the evaluation.
-              - generic [ref=e153]: No image generated yet.
-              - generic [ref=e154]:
-                - button "Generate Concept Image" [ref=e155] [cursor=pointer]
-                - generic "Upload Custom Image" [ref=e156] [cursor=pointer]:
-                  - img [ref=e157]
-            - generic [ref=e159]:
-              - heading "Data Collection" [level=4] [ref=e160]
-              - paragraph [ref=e161]: The systematic process of gathering evidence to support or refute the core hypothesis.
-              - generic [ref=e163]: No image generated yet.
-              - generic [ref=e164]:
-                - button "Generate Concept Image" [ref=e165] [cursor=pointer]
-                - generic "Upload Custom Image" [ref=e166] [cursor=pointer]:
-                  - img [ref=e167]
-            - generic [ref=e169]:
-              - heading "Pattern Recognition" [level=4] [ref=e170]
-              - paragraph [ref=e171]: Identifying recurring trends or anomalies within the collected data set.
-              - generic [ref=e173]: No image generated yet.
-              - generic [ref=e174]:
-                - button "Generate Concept Image" [ref=e175] [cursor=pointer]
-                - generic "Upload Custom Image" [ref=e176] [cursor=pointer]:
-                  - img [ref=e177]
-            - generic [ref=e179]:
-              - heading "Final Synthesis" [level=4] [ref=e180]
-              - paragraph [ref=e181]: Drawing a logical conclusion based on the evidence and patterns observed.
-              - generic [ref=e183]: No image generated yet.
-              - generic [ref=e184]:
-                - button "Generate Concept Image" [ref=e185] [cursor=pointer]
-                - generic "Upload Custom Image" [ref=e186] [cursor=pointer]:
-                  - img [ref=e187]
-          - button "Submit for Public Moderation" [disabled] [ref=e190]
-      - generic [ref=e192]:
-        - img [ref=e193]
-        - generic [ref=e195]: Topic breakdown generated successfully!
-        - button [ref=e196] [cursor=pointer]:
-          - img [ref=e197]
+      - generic [ref=e59]:
+        - generic [ref=e60] [cursor=pointer]:
+          - generic [ref=e61]: "1"
+          - generic [ref=e62]: Topic
+        - generic [ref=e64] [cursor=pointer]:
+          - generic [ref=e65]: "2"
+          - generic [ref=e66]: Content
+        - generic [ref=e68] [cursor=pointer]:
+          - generic [ref=e69]: "3"
+          - generic [ref=e70]: Images
+      - generic [ref=e72]:
+        - generic [ref=e73]:
+          - generic [ref=e74]:
+            - heading "2. Edit Content Payload" [level=3] [ref=e75]
+            - paragraph [ref=e76]: Review and refine the generated concepts.
+          - generic [ref=e77]:
+            - button "Visual" [ref=e78] [cursor=pointer]
+            - button "JSON" [ref=e79] [cursor=pointer]
+        - generic [ref=e80]:
+          - generic [ref=e81]:
+            - generic [ref=e82]: Deck Title
+            - textbox [ref=e83]: Test Topic Fundamentals
+          - generic [ref=e84]:
+            - generic [ref=e85]:
+              - generic [ref=e86]:
+                - generic [ref=e87]: Concept 1
+                - button "Remove Concept" [ref=e88] [cursor=pointer]:
+                  - img [ref=e89]
+              - textbox "Term" [ref=e91]: Core Hypothesis
+              - textbox "Definition" [ref=e92]: The foundational assumption or primary question that drives the entire test topic.
+            - generic [ref=e93]:
+              - generic [ref=e94]:
+                - generic [ref=e95]: Concept 2
+                - button "Remove Concept" [ref=e96] [cursor=pointer]:
+                  - img [ref=e97]
+              - textbox "Term" [ref=e99]: Variable Analysis
+              - textbox "Definition" [ref=e100]: The process of identifying and isolating specific factors that influence the outcome of the test.
+            - generic [ref=e101]:
+              - generic [ref=e102]:
+                - generic [ref=e103]: Concept 3
+                - button "Remove Concept" [ref=e104] [cursor=pointer]:
+                  - img [ref=e105]
+              - textbox "Term" [ref=e107]: Control Group
+              - textbox "Definition" [ref=e108]: A standard baseline used for comparison to ensure the results are accurate and unbiased.
+            - generic [ref=e109]:
+              - generic [ref=e110]:
+                - generic [ref=e111]: Concept 4
+                - button "Remove Concept" [ref=e112] [cursor=pointer]:
+                  - img [ref=e113]
+              - textbox "Term" [ref=e115]: Data Collection
+              - textbox "Definition" [ref=e116]: The systematic gathering of observations and metrics during the testing process.
+            - generic [ref=e117]:
+              - generic [ref=e118]:
+                - generic [ref=e119]: Concept 5
+                - button "Remove Concept" [ref=e120] [cursor=pointer]:
+                  - img [ref=e121]
+              - textbox "Term" [ref=e123]: Conclusion Synthesis
+              - textbox "Definition" [ref=e124]: The final step of interpreting the collected data to validate or refute the initial hypothesis.
+          - button "Brainstorm 3 More Items" [ref=e126] [cursor=pointer]:
+            - img [ref=e127]
+            - text: Brainstorm 3 More Items
+        - generic [ref=e129]:
+          - generic [ref=e130]: Global Art Direction (Optional)
+          - generic [ref=e131]:
+            - textbox "e.g. 90s Anime Style, Vector Art, Pastel Colors..." [ref=e132]
+            - generic [ref=e135] [cursor=pointer]:
+              - img [ref=e136]
+              - text: Upload Reference Image
+        - generic [ref=e138]:
+          - button "Back" [ref=e139] [cursor=pointer]
+          - 'button "Next: Generate Images" [ref=e140] [cursor=pointer]'
+      - generic [ref=e142]:
+        - img [ref=e143]
+        - generic [ref=e145]: Topic breakdown generated successfully!
+        - button [ref=e146] [cursor=pointer]:
+          - img [ref=e147]
 ```
 
 # Test source
@@ -303,6 +260,52 @@ Call log:
   97  |     await expect(page).toHaveURL(/.*\/$/);
   98  |   });
   99  | 
-  100 | });
-  101 | 
+  100 |   test('Journey 10: Flashcard Studio Steps Assistant Flow', async ({ page }) => {
+  101 |     await page.goto('/flashcard-studio');
+  102 |     
+  103 |     // Step 1: Topic Form
+  104 |     await expect(page.locator('h3:has-text("1. Break Down Topic")')).toBeVisible();
+  105 |     
+  106 |     const topicInput = page.locator('input[formControlName="topic"]').first();
+  107 |     await topicInput.fill('Test Topic');
+  108 |     
+  109 |     // Mock AI response
+  110 |     await page.route('**/models/gemini-*:generateContent', async route => {
+  111 |       await route.fulfill({
+  112 |         status: 200,
+  113 |         contentType: 'application/json',
+  114 |         body: JSON.stringify({
+  115 |           candidates: [{
+  116 |             content: {
+  117 |               parts: [{
+  118 |                 text: JSON.stringify({
+  119 |                   title: "Test Topic Deck",
+  120 |                   items: [
+  121 |                     { term: "Concept 1", definition: "Definition 1" },
+  122 |                     { term: "Concept 2", definition: "Definition 2" }
+  123 |                   ]
+  124 |                 })
+  125 |               }]
+  126 |             }
+  127 |           }]
+  128 |         })
+  129 |       });
+  130 |     });
+  131 |     
+  132 |     const brainstormButton = page.locator('button:has-text("Brainstorm Content")').first();
+  133 |     await brainstormButton.click();
+  134 |     
+  135 |     // Should move to Step 2
+  136 |     await expect(page.locator('h3:has-text("2. Edit Content Payload")')).toBeVisible();
+  137 |     
+  138 |     // Click Next to go to Step 3
+  139 |     const nextButton = page.locator('button:has-text("Next: Generate Images")').first();
+  140 |     await nextButton.click();
+  141 |     
+  142 |     // Should move to Step 3
+  143 |     await expect(page.locator('h3:has-text("3. Per-Concept Image Generation")')).toBeVisible();
+  144 |   });
+  145 | 
+  146 | });
+  147 | 
 ```

@@ -97,4 +97,50 @@ test.describe('Admin Console Golden Path - All User Journeys', () => {
     await expect(page).toHaveURL(/.*\/$/);
   });
 
+  test('Journey 10: Flashcard Studio Steps Assistant Flow', async ({ page }) => {
+    await page.goto('/flashcard-studio');
+    
+    // Step 1: Topic Form
+    await expect(page.locator('h3:has-text("1. Break Down Topic")')).toBeVisible();
+    
+    const topicInput = page.locator('input[formControlName="topic"]').first();
+    await topicInput.fill('Test Topic');
+    
+    // Mock AI response
+    await page.route('**/models/gemini-*:generateContent', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          candidates: [{
+            content: {
+              parts: [{
+                text: JSON.stringify({
+                  title: "Test Topic Deck",
+                  items: [
+                    { term: "Concept 1", definition: "Definition 1" },
+                    { term: "Concept 2", definition: "Definition 2" }
+                  ]
+                })
+              }]
+            }
+          }]
+        })
+      });
+    });
+    
+    const brainstormButton = page.locator('button:has-text("Brainstorm Content")').first();
+    await brainstormButton.click();
+    
+    // Should move to Step 2
+    await expect(page.locator('h3:has-text("2. Edit Content Payload")')).toBeVisible();
+    
+    // Click Next to go to Step 3
+    const nextButton = page.locator('button:has-text("Next: Generate Images")').first();
+    await nextButton.click();
+    
+    // Should move to Step 3
+    await expect(page.locator('h3:has-text("3. Per-Concept Image Generation")')).toBeVisible();
+  });
+
 });

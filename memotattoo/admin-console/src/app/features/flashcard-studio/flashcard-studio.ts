@@ -53,6 +53,7 @@ export class FlashcardStudio implements OnInit {
   isGeneratingContent = signal<boolean>(false);
   generatedContent = signal<any | null>(null);
   editorMode = signal<'visual' | 'json'>('visual');
+  currentStep = signal<number>(1);
   visualItems = signal<{ term: string, definition: string }[]>([]);
   editableJson: string = '';
   artDirection: string = '';
@@ -113,7 +114,8 @@ export class FlashcardStudio implements OnInit {
       originalStatus: this.originalStatus(),
       originalIsPublic: this.originalIsPublic(),
       originalOwnerId: this.originalOwnerId(),
-      originalOwnerEmail: this.originalOwnerEmail()
+      originalOwnerEmail: this.originalOwnerEmail(),
+      currentStep: this.currentStep()
     };
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData));
 
@@ -219,6 +221,7 @@ export class FlashcardStudio implements OnInit {
         if (draftData.originalIsPublic !== undefined) this.originalIsPublic.set(draftData.originalIsPublic);
         if (draftData.originalOwnerId) this.originalOwnerId.set(draftData.originalOwnerId);
         if (draftData.originalOwnerEmail) this.originalOwnerEmail.set(draftData.originalOwnerEmail);
+        if (draftData.currentStep) this.currentStep.set(draftData.currentStep);
       } catch (e) {
         console.warn("Failed to parse LocalStorage Draft.");
       }
@@ -261,10 +264,32 @@ export class FlashcardStudio implements OnInit {
     this.conceptDrafts.set([]);
     this.activeDraftId.set(null);
     this.isEditingExisting.set(false);
+    this.currentStep.set(1);
   }
 
   hasDraft(): boolean {
     return !!localStorage.getItem(DRAFT_STORAGE_KEY);
+  }
+
+  nextStep() {
+    if (this.currentStep() < 3) {
+      this.currentStep.update(s => s + 1);
+      this.saveDraft();
+    }
+  }
+
+  prevStep() {
+    if (this.currentStep() > 1) {
+      this.currentStep.update(s => s - 1);
+      this.saveDraft();
+    }
+  }
+
+  goToStep(step: number) {
+    if (step >= 1 && step <= 3) {
+      this.currentStep.set(step);
+      this.saveDraft();
+    }
   }
 
   onJsonEdited() {
@@ -408,6 +433,7 @@ export class FlashcardStudio implements OnInit {
       this.saveDraft();
       this.logger.success('Brainstorm Complete', `Generated ${this.topicForm.value.numConcepts} concepts for ${this.topicForm.value?.topic}`);
       this.showToast("Topic breakdown generated successfully!", 'success');
+      this.currentStep.set(2);
     } catch (e: any) {
       console.error(e);
       if (e.message && e.message.includes("Insufficient energy bolts")) {
