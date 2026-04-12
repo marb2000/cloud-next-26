@@ -16,9 +16,12 @@ exports.logBeforeCalls = ai.beforeGenerateContent(async (event) => {
 
   let parts = [];
   if (request.contents) {
-    parts = request.contents.flatMap(c => c.parts ? c.parts.map(p => p.text).filter(Boolean) : []);
+    parts = request.contents.flatMap(
+      c => c.parts ? c.parts.map(p => p.text).filter(Boolean) : []);
   } else if (request.candidates) {
-    parts = request.candidates.flatMap(c => c.content && c.content.parts ? c.content.parts.map(p => p.text).filter(Boolean) : []);
+    parts = request.candidates.flatMap(
+      c => c.content && c.content.parts ?
+        c.content.parts.map(p => p.text).filter(Boolean) : []);
   }
 
   const status = event.auth?.token?.status || 'FREE';

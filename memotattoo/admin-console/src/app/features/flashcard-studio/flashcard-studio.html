@@ -3,9 +3,9 @@
   <div class="flex items-center justify-between mb-8 flex-shrink-0">
     <div>
       <h1 class="text-3xl font-extrabold text-white tracking-tight mb-2">Flashcard Deck Studio</h1>
-      <p class="text-slate-400 font-medium tracking-wide">Generate curriculum, topic concepts, and detailed
+      <p class="text-slate-400 font-medium tracking-wide">Brainstorm topics, generate study flashcards, and detailed
         illustrations using
-        Gemini AI.</p>
+        Gemini.</p>
     </div>
     <button *ngIf="hasDraft()" type="button" (click)="showDeleteConfirm.set(true)"
       class="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg text-sm font-bold border border-red-500/30 transition-colors">
@@ -17,7 +17,8 @@
     <!-- LEFT: Topic Form and Data Review -->
     <div
       class="bg-slate-800 border border-slate-700 p-8 rounded-2xl shadow-xl flex flex-col h-full lg:max-h-[850px] overflow-auto">
-      <form [formGroup]="topicForm" (ngSubmit)="brainstormTopic()" class="space-y-6 bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 backdrop-blur-sm">
+      <form [formGroup]="topicForm" (ngSubmit)="brainstormTopic()"
+        class="space-y-6 bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 backdrop-blur-sm">
         <h3 class="text-xl font-bold text-purple-400 mb-4">1. Break Down Topic</h3>
         <div class="grid grid-cols-3 gap-4">
           <div class="col-span-2">

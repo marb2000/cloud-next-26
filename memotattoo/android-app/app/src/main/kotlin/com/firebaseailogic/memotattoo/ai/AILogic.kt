@@ -160,7 +160,7 @@ object AILogic : IAILogic {
         override fun startGameSession(deckTitle: String): Chat {
                 val gameMasterModel =
                         Firebase.ai.generativeModel(
-                                modelName = "gemini-2.5-flash",
+                                modelName = "gemini-3.1-flash-lite-preview",
                                 systemInstruction =
                                         content {
                                                 text(
@@ -251,6 +251,7 @@ object AILogic : IAILogic {
                 onAddPoints: (Int) -> Unit,
                 onNextConcept: (String) -> Map<String, Any>
         ): TemplateChat {
+                
                 val addPointsFunction = TemplateAutoFunctionDeclaration.create(
                         functionName = "add_points",
                         inputSchema = AddPointsParams.firebaseAISchema(),
