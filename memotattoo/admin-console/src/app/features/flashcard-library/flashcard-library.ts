@@ -317,6 +317,9 @@ export class FlashcardLibrary implements OnInit {
     const action = this.pendingAction();
     if (!action) return;
 
+    // Reset state to close the dialog immediately
+    this.pendingAction.set(null);
+
     // Execute the appropriate action based on the state variable
     if (action.type === 'delete') {
       try {
@@ -335,9 +338,6 @@ export class FlashcardLibrary implements OnInit {
         alert("Status update failed: " + e.message);
       }
     }
-
-    // Reset state to close the dialog
-    this.pendingAction.set(null);
   }
 
   openQuickEdit(deck: FlashcardDeck) {

@@ -272,7 +272,7 @@ export class FlashcardStudio implements OnInit {
   }
 
   nextStep() {
-    if (this.currentStep() < 3) {
+    if (this.currentStep() < 4) {
       this.currentStep.update(s => s + 1);
       this.saveDraft();
     }
@@ -286,7 +286,7 @@ export class FlashcardStudio implements OnInit {
   }
 
   goToStep(step: number) {
-    if (step >= 1 && step <= 3) {
+    if (step >= 1 && step <= 4) {
       this.currentStep.set(step);
       this.saveDraft();
     }
@@ -599,11 +599,7 @@ export class FlashcardStudio implements OnInit {
   }
 
   canPublish(): boolean {
-    const drafts = this.conceptDrafts();
-    if (this.isEditingExisting()) {
-      return drafts.length > 0;
-    }
-    return drafts.length > 0 && drafts.every(c => c.images.length > 0);
+    return this.conceptDrafts().length > 0;
   }
 
   async generateConceptImage(index: number) {

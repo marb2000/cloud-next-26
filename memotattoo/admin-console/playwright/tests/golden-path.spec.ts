@@ -135,12 +135,19 @@ test.describe('Admin Console Golden Path - All User Journeys', () => {
     // Should move to Step 2
     await expect(page.locator('h3:has-text("2. Edit Content Payload")')).toBeVisible();
     
-    // Click Next to go to Step 3
-    const nextButton = page.locator('button:has-text("Next: Generate Images")').first();
+    // Click Next to go to Step 3 (Art Direction)
+    const nextButton = page.locator('button:has-text("Next: Art Direction")').first();
     await nextButton.click();
     
     // Should move to Step 3
-    await expect(page.locator('h3:has-text("3. Per-Concept Image Generation")')).toBeVisible();
+    await expect(page.locator('h3:has-text("3. Global Art Direction")')).toBeVisible();
+
+    // Click Next to go to Step 4 (Images)
+    const nextButton2 = page.locator('button:has-text("Next: Generate Images")').first();
+    await nextButton2.click();
+    
+    // Should move to Step 4
+    await expect(page.locator('h3:has-text("4. Per-Concept Image Generation")')).toBeVisible();
   });
 
 });

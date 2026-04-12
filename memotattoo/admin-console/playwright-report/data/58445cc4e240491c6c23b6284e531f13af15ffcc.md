@@ -88,73 +88,69 @@ Call log:
           - generic [ref=e66]: Content
         - generic [ref=e68] [cursor=pointer]:
           - generic [ref=e69]: "3"
-          - generic [ref=e70]: Images
-      - generic [ref=e72]:
-        - generic [ref=e73]:
-          - generic [ref=e74]:
-            - heading "2. Edit Content Payload" [level=3] [ref=e75]
-            - paragraph [ref=e76]: Review and refine the generated concepts.
-          - generic [ref=e77]:
-            - button "Visual" [ref=e78] [cursor=pointer]
-            - button "JSON" [ref=e79] [cursor=pointer]
-        - generic [ref=e80]:
+          - generic [ref=e70]: Style
+        - generic [ref=e72] [cursor=pointer]:
+          - generic [ref=e73]: "4"
+          - generic [ref=e74]: Images
+      - generic [ref=e76]:
+        - generic [ref=e77]:
+          - generic [ref=e78]:
+            - heading "2. Edit Content Payload" [level=3] [ref=e79]
+            - paragraph [ref=e80]: Review and refine the generated concepts.
           - generic [ref=e81]:
-            - generic [ref=e82]: Deck Title
-            - textbox [ref=e83]: Test Topic Fundamentals
-          - generic [ref=e84]:
-            - generic [ref=e85]:
-              - generic [ref=e86]:
-                - generic [ref=e87]: Concept 1
-                - button "Remove Concept" [ref=e88] [cursor=pointer]:
-                  - img [ref=e89]
-              - textbox "Term" [ref=e91]: Core Hypothesis
-              - textbox "Definition" [ref=e92]: The foundational assumption or primary question that drives the entire test topic.
-            - generic [ref=e93]:
-              - generic [ref=e94]:
-                - generic [ref=e95]: Concept 2
-                - button "Remove Concept" [ref=e96] [cursor=pointer]:
-                  - img [ref=e97]
-              - textbox "Term" [ref=e99]: Variable Analysis
-              - textbox "Definition" [ref=e100]: The process of identifying and isolating specific factors that influence the outcome of the test.
-            - generic [ref=e101]:
-              - generic [ref=e102]:
-                - generic [ref=e103]: Concept 3
-                - button "Remove Concept" [ref=e104] [cursor=pointer]:
-                  - img [ref=e105]
-              - textbox "Term" [ref=e107]: Control Group
-              - textbox "Definition" [ref=e108]: A standard baseline used for comparison to ensure the results are accurate and unbiased.
-            - generic [ref=e109]:
-              - generic [ref=e110]:
-                - generic [ref=e111]: Concept 4
-                - button "Remove Concept" [ref=e112] [cursor=pointer]:
-                  - img [ref=e113]
-              - textbox "Term" [ref=e115]: Data Collection
-              - textbox "Definition" [ref=e116]: The systematic gathering of observations and metrics during the testing process.
-            - generic [ref=e117]:
-              - generic [ref=e118]:
-                - generic [ref=e119]: Concept 5
-                - button "Remove Concept" [ref=e120] [cursor=pointer]:
-                  - img [ref=e121]
-              - textbox "Term" [ref=e123]: Conclusion Synthesis
-              - textbox "Definition" [ref=e124]: The final step of interpreting the collected data to validate or refute the initial hypothesis.
-          - button "Brainstorm 3 More Items" [ref=e126] [cursor=pointer]:
-            - img [ref=e127]
+            - button "Visual" [ref=e82] [cursor=pointer]
+            - button "JSON" [ref=e83] [cursor=pointer]
+        - generic [ref=e84]:
+          - generic [ref=e85]:
+            - generic [ref=e86]: Deck Title
+            - textbox [ref=e87]: Test Topic Fundamentals
+          - generic [ref=e88]:
+            - generic [ref=e89]:
+              - generic [ref=e90]:
+                - generic [ref=e91]: Concept 1
+                - button "Remove Concept" [ref=e92] [cursor=pointer]:
+                  - img [ref=e93]
+              - textbox "Term" [ref=e95]: Core Concept
+              - textbox "Definition" [ref=e96]: The primary idea that serves as the foundation for the entire topic.
+            - generic [ref=e97]:
+              - generic [ref=e98]:
+                - generic [ref=e99]: Concept 2
+                - button "Remove Concept" [ref=e100] [cursor=pointer]:
+                  - img [ref=e101]
+              - textbox "Term" [ref=e103]: Supporting Data
+              - textbox "Definition" [ref=e104]: The essential facts and evidence that validate the core concept.
+            - generic [ref=e105]:
+              - generic [ref=e106]:
+                - generic [ref=e107]: Concept 3
+                - button "Remove Concept" [ref=e108] [cursor=pointer]:
+                  - img [ref=e109]
+              - textbox "Term" [ref=e111]: Methodology
+              - textbox "Definition" [ref=e112]: The systematic approach used to analyze and apply the topic's principles.
+            - generic [ref=e113]:
+              - generic [ref=e114]:
+                - generic [ref=e115]: Concept 4
+                - button "Remove Concept" [ref=e116] [cursor=pointer]:
+                  - img [ref=e117]
+              - textbox "Term" [ref=e119]: Practical Application
+              - textbox "Definition" [ref=e120]: Real-world scenarios where the topic is utilized to solve specific problems.
+            - generic [ref=e121]:
+              - generic [ref=e122]:
+                - generic [ref=e123]: Concept 5
+                - button "Remove Concept" [ref=e124] [cursor=pointer]:
+                  - img [ref=e125]
+              - textbox "Term" [ref=e127]: Future Implications
+              - textbox "Definition" [ref=e128]: The long-term impact and potential evolution of the topic in the field.
+          - button "Brainstorm 3 More Items" [ref=e130] [cursor=pointer]:
+            - img [ref=e131]
             - text: Brainstorm 3 More Items
-        - generic [ref=e129]:
-          - generic [ref=e130]: Global Art Direction (Optional)
-          - generic [ref=e131]:
-            - textbox "e.g. 90s Anime Style, Vector Art, Pastel Colors..." [ref=e132]
-            - generic [ref=e135] [cursor=pointer]:
-              - img [ref=e136]
-              - text: Upload Reference Image
-        - generic [ref=e138]:
-          - button "Back" [ref=e139] [cursor=pointer]
-          - 'button "Next: Generate Images" [ref=e140] [cursor=pointer]'
-      - generic [ref=e142]:
-        - img [ref=e143]
-        - generic [ref=e145]: Topic breakdown generated successfully!
-        - button [ref=e146] [cursor=pointer]:
-          - img [ref=e147]
+        - generic [ref=e133]:
+          - button "Back" [ref=e134] [cursor=pointer]
+          - 'button "Next: Art Direction" [ref=e135] [cursor=pointer]'
+      - generic [ref=e137]:
+        - img [ref=e138]
+        - generic [ref=e140]: Topic breakdown generated successfully!
+        - button [ref=e141] [cursor=pointer]:
+          - img [ref=e142]
 ```
 
 # Test source
@@ -298,14 +294,21 @@ Call log:
   135 |     // Should move to Step 2
   136 |     await expect(page.locator('h3:has-text("2. Edit Content Payload")')).toBeVisible();
   137 |     
-  138 |     // Click Next to go to Step 3
-  139 |     const nextButton = page.locator('button:has-text("Next: Generate Images")').first();
+  138 |     // Click Next to go to Step 3 (Art Direction)
+  139 |     const nextButton = page.locator('button:has-text("Next: Art Direction")').first();
   140 |     await nextButton.click();
   141 |     
   142 |     // Should move to Step 3
-  143 |     await expect(page.locator('h3:has-text("3. Per-Concept Image Generation")')).toBeVisible();
-  144 |   });
-  145 | 
-  146 | });
-  147 | 
+  143 |     await expect(page.locator('h3:has-text("3. Global Art Direction")')).toBeVisible();
+  144 | 
+  145 |     // Click Next to go to Step 4 (Images)
+  146 |     const nextButton2 = page.locator('button:has-text("Next: Generate Images")').first();
+  147 |     await nextButton2.click();
+  148 |     
+  149 |     // Should move to Step 4
+  150 |     await expect(page.locator('h3:has-text("4. Per-Concept Image Generation")')).toBeVisible();
+  151 |   });
+  152 | 
+  153 | });
+  154 | 
 ```
