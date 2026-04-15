@@ -304,5 +304,4 @@ object AILogic : IAILogic {
                 return gameTemplateModel.startChat("memotattoo-game-master-v1", inputs)
 
         }
-
 }
