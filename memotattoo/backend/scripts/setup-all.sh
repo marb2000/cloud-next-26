@@ -14,6 +14,14 @@ PROJECT_ID=$(grep -o '"PROJECT_ID": "[^"]*' sync-config.json | cut -d'"' -f4)
 echo "🛠 Starting Full Project Setup..."
 echo "📍 Project: $PROJECT_ID"
 
+# Install dependencies for setup scripts
+echo "📦 Installing setup dependencies..."
+npm install
+if [ $? -ne 0 ]; then
+    echo "❌ Error: npm install failed. If you are on a corporate network, please run 'gcert' to refresh your credentials and try again."
+    exit 1
+fi
+
 # 1. Setup Authentication (Identity Toolkit + Providers)
 echo -e "\n--- Step 1: Authentication ---"
 node setup/setup-auth.js
@@ -53,7 +61,7 @@ node setup/setCors.js
 # 10. Deploy Cloud Functions
 echo -e "\n--- Step 10: Cloud Functions ---"
 (cd setup/functions && npm install)
-(cd setup && npx firebase deploy --only functions --project "$PROJECT_ID")
+(cd setup && npx firebase-tools deploy --only functions --project "$PROJECT_ID")
 
 # 11. Setup App Check
 echo -e "\n--- Step 11: App Check ---"
