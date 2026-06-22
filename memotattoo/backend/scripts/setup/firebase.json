@@ -18,6 +18,7 @@
     "source": "prompts"
   },
   "hosting": {
+    "site": "memotattooadmin",
     "public": "public",
     "ignore": [
       "firebase.json",

@@ -39,6 +39,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 memotattoo/backend/scripts/setup/public/
+.firebase/
 
 # Android
 local.properties
