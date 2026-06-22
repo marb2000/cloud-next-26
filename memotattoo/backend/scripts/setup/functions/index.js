@@ -8,9 +8,55 @@ const { getFirestore } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
 const admin = require("firebase-admin");
 
+// Force redeploy triggers comment v2
+const { setGlobalOptions } = require("firebase-functions");
+
+
 admin.initializeApp();
+setGlobalOptions({ maxInstances: 10 });
+
+exports.myAfterGenerateContentFn = ai.afterGenerateContent(async (event) => {
+  console.log(`got after generate content request for ${event.data.model}`);
+
+  const response = event.data.response;
+  let responseText = "";
+  if (response && response.candidates) {
+    responseText = response.candidates.flatMap(
+      c => c.content && c.content.parts ?
+        c.content.parts.map(p => p.text).filter(Boolean) : []
+    ).join("\n");
+  }
+
+  const logData = {
+    action: "After Generate Content",
+    description: `AI response intercepted. Model: ${event.data.model || 'Unknown'}`,
+    timestamp: new Date().toISOString(),
+    intent: "info",
+    metadata: {
+      user: event.auth?.uid || 'Unknown',
+      template: event.data.template?.id || 'N/A',
+      model: event.data.model || 'Unknown',
+      api: event.data.api || 'Unknown',
+      response_text: responseText,
+      raw_response: response
+    }
+  };
+
+  const db = getFirestore();
+
+  try {
+    await db.collection("ActivityLogs").add(logData);
+    console.log("Logged AI response to ActivityLogs.");
+  } catch (e) {
+    console.error("Failed to log AI response:", e);
+  }
+});
+
 
 exports.logBeforeCalls = ai.beforeGenerateContent(async (event) => {
+
+  console.log(`got before generate content request for ${event.data.model}`);
+
 
   const request = event.data.request;
 
@@ -145,4 +191,19 @@ exports.syncUserClaims = onDocumentUpdated("Users/{uid}", async (event) => {
 
     console.log(`Updated custom claims for user ${uid} to status: ${newData.status}`);
   }
+});
+
+exports.testActivityLog = onCall(async (request) => {
+  const db = getFirestore();
+  const logData = {
+    action: "Test Activity Log",
+    description: "Callable test function invoked.",
+    timestamp: new Date().toISOString(),
+    intent: "info",
+    metadata: {
+      user: request.auth?.uid || 'Unknown'
+    }
+  };
+  await db.collection("ActivityLogs").add(logData);
+  return { success: true };
 });

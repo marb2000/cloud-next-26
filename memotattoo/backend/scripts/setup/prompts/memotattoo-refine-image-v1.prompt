@@ -1,5 +1,5 @@
 ---
-model: "gemini-3.1-flash-image-preview" 
+model: "gemini-3.1-flash-image" 
 input:
   schema:
     inline_images?(array, inline image data):
