@@ -18,7 +18,7 @@
     "source": "prompts"
   },
   "hosting": {
-    "public": "../../../admin-console/dist/admin-console",
+    "public": "../../../admin-console/dist/admin-console/browser",
     "ignore": [
       "firebase.json",
       "**/.*",
