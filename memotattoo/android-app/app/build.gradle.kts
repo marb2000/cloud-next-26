@@ -1,6 +1,3 @@
-import java.util.Properties
-import java.io.FileInputStream
-
 /*
 This build script is related to the `gradle/libs.versions.toml` file in the following way:
 
@@ -52,20 +49,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        
-        // Default empty string for APPCHECK_DEBUG_TOKEN, overridden in debug build type
-        buildConfigField("String", "APPCHECK_DEBUG_TOKEN", "\"\"")
     }
 
     buildTypes {
-        debug {
-            // Read App Check debug token from local.properties if it exists
-            val appCheckToken = project.rootProject.file("local.properties")
-                .let { if (it.exists()) Properties().apply { load(FileInputStream(it)) } else null }
-                ?.getProperty("APPCHECK_DEBUG_TOKEN") ?: ""
-            
-            buildConfigField("String", "APPCHECK_DEBUG_TOKEN", "\"$appCheckToken\"")
-        }
         release {
             isMinifyEnabled = false
             proguardFiles(

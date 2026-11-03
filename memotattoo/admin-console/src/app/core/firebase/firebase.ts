@@ -21,10 +21,6 @@ import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-ch
 export const app = initializeApp(firebaseConfig);
 
 // Initialize App Check
-if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-  (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = "283506C0-51BB-4F2D-83BE-4684B26E5267";
-}
-
 initializeAppCheck(app, {
   provider: new ReCaptchaEnterpriseProvider('YOUR_RECAPTCHA_ENTERPRISE_SITE_KEY'),
   isTokenAutoRefreshEnabled: true

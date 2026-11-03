@@ -14,7 +14,6 @@ if (fs.existsSync(configPath)) {
 }
 
 const PROJECT_ID = config.PROJECT_ID;
-const APPCHECK_DEBUG_TOKEN = config.APPCHECK_DEBUG_TOKEN;
 
 async function getAccessToken() {
   const auth = new GoogleAuth({
@@ -48,38 +47,6 @@ async function getAppIds(accessToken) {
   const webAppId = webData.apps?.find(a => a.displayName === (config.WEB_APP_NAME || 'MemoTattoo Web Admin'))?.appId;
 
   return { androidAppId, webAppId };
-}
-
-async function registerDebugToken(accessToken, appId, platform) {
-  if (!appId) {
-    console.warn(`⚠️ Skipping App Check for ${platform}: App ID not found.`);
-    return;
-  }
-  
-  console.log(`🔐 Registering App Check Debug Token for ${platform}...`);
-  const url = `https://firebaseappcheck.googleapis.com/v1beta/projects/${PROJECT_ID}/apps/${appId}/debugTokens`;
-  
-  const payload = {
-    displayName: `MemoTattoo Debug Token (${platform})`,
-    token: APPCHECK_DEBUG_TOKEN
-  };
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      'X-Goog-User-Project': PROJECT_ID
-    },
-    body: JSON.stringify(payload)
-  });
-
-  if (response.ok) {
-    console.log(`✅ App Check registered for ${platform}.`);
-  } else {
-    const error = await response.json();
-    console.error(`❌ Failed to register App Check for ${platform}:`, JSON.stringify(error));
-  }
 }
 
 async function configurePlayIntegrity(accessToken, appId) {
@@ -163,24 +130,15 @@ async function registerSha256(accessToken, appId) {
 }
 
 async function main() {
-  if (!APPCHECK_DEBUG_TOKEN && !config.RECAPTCHA_SECRET_KEY) {
-    console.log('⏩ Skipping App Check registration: No token or secret in config.');
-    return;
-  }
-
   try {
     const accessToken = await getAccessToken();
     const { androidAppId, webAppId } = await getAppIds(accessToken);
-    
-    // 1. Debug Tokens
-    await registerDebugToken(accessToken, androidAppId, 'Android');
-    await registerDebugToken(accessToken, webAppId, 'Web');
 
-    // 2. Production Providers
+    // 1. Production Providers
     await configurePlayIntegrity(accessToken, androidAppId);
     await configureRecaptchaV3(accessToken, webAppId, config.RECAPTCHA_SECRET_KEY);
 
-    // 3. Android Fingerprint
+    // 2. Android Fingerprint
     await registerSha256(accessToken, androidAppId);
 
   } catch (error) {

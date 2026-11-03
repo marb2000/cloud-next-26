@@ -42,3 +42,10 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Test outputs & App Check debug config
+/playwright-report
+/test-results
+test-results.txt
+test_results.txt
+public/appcheck-config.json

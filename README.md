@@ -68,7 +68,7 @@ MemoTattoo includes a comprehensive set of scripts to automate the setup of the 
 
 1.  **`create-project.js`**: Automates the creation of the Google Cloud project and enables Firebase on it.
 2.  **`setup-apps.js`**: Registers the Android and Web applications in your Firebase project.
-3.  **`setup-appcheck.js`**: Configures App Check with Play Integrity (Android) and reCAPTCHA v3 (Web), and registers debug tokens.
+3.  **`setup-appcheck.js`**: Configures App Check with Play Integrity (Android) and reCAPTCHA v3 (Web).
 4.  **`download-config.js`**: Fetches the generated configuration files (`google-services.json` for Android and environment variables for Web) and places them in the correct directories.
 5.  **Automation & Deployment**: Includes scripts to automate all deployment and updates for the application (e.g., prompt sync, app deployment).
 
